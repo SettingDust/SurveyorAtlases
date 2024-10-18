@@ -63,6 +63,14 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
 
     library("moonlight-fabric", "maven.modrinth", "moonlight").version("fabric_1.20-2.13.10")
     library("moonlight-forge", "maven.modrinth", "moonlight").version("forge_1.20-2.13.10")
+
+    // https://www.curseforge.com/minecraft/mc-mods/map-atlases/files/all?page=1&pageSize=20
+    library("map-atlases-fabric", "curse.maven", "map-atlases-436298").version("5626092")
+    // https://www.curseforge.com/minecraft/mc-mods/map-atlases-forge/files/all?page=1&pageSize=20
+    library("map-atlases-forge", "curse.maven", "map-atlases-forge-519759").version("5626093")
+
+    library("supplementaries-fabric", "maven.modrinth", "supplementaries").version("1.20-2.8.17-fabric")
+    library("supplementaries-forge", "maven.modrinth", "supplementaries").version("1.20-2.8.17-forge")
 }
 
 plugins {

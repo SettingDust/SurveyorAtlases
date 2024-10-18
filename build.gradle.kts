@@ -39,6 +39,7 @@ java {
 }
 
 repositories {
+    unimined.curseMaven()
     unimined.modrinthMaven()
 
     maven("https://repo.sleeping.town/") {
@@ -147,6 +148,12 @@ dependencies {
         fabricModImplementation(it)
     }
 
+    lexforgeMinecraftLibraries(catalog.sinytra.connector)
+    lexforgeModImplementation(catalog.forgified.fabric.api) {
+        exclude(module = "fabric-loader")
+    }
+    lexforgeModImplementation(catalog.kotlin.forge)
+
     catalog.surveyor.let {
         modImplementation(it) {
             exclude(group = "net.fabricmc")
@@ -172,13 +179,19 @@ dependencies {
         modImplementation(it)
         fabricModImplementation(it)
     }
-
-    lexforgeMinecraftLibraries(catalog.sinytra.connector)
-    lexforgeModImplementation(catalog.forgified.fabric.api) {
-        exclude(module = "fabric-loader")
-    }
-    lexforgeModImplementation(catalog.kotlin.forge)
     lexforgeModImplementation(catalog.moonlight.forge)
+
+    catalog.map.atlases.fabric.let {
+        modImplementation(it)
+        fabricModImplementation(it)
+    }
+    lexforgeModImplementation(catalog.map.atlases.forge)
+
+    catalog.supplementaries.fabric.let {
+        modImplementation(it)
+        fabricModImplementation(it)
+    }
+    lexforgeModImplementation(catalog.supplementaries.forge)
 }
 
 tasks {
@@ -187,7 +200,7 @@ tasks {
             "id" to id,
             "version" to rootProject.version,
             "group" to rootProject.group,
-            "name" to name,
+            "name" to rootProject.name,
             "description" to rootProject.property("description").toString(),
             "author" to rootProject.property("author").toString(),
             "source" to rootProject.property("source").toString(),
