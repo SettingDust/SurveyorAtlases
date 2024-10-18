@@ -249,7 +249,7 @@ tasks {
     named<Jar>("fabricJar") {
         duplicatesStrategy = DuplicatesStrategy.WARN
 
-        archiveClassifier = ""
+        archiveClassifier = "dev"
     }
 
     named<Jar>("remapFabricJar") {
