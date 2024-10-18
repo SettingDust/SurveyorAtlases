@@ -12,6 +12,7 @@ plugins {
     alias(catalog.plugins.unmined)
 }
 
+val archive_name: String by rootProject.properties
 val id: String by rootProject.properties
 val name: String by rootProject.properties
 val author: String by rootProject.properties
@@ -24,7 +25,7 @@ val gitVersion: Closure<String> by extra
 version = gitVersion()
 
 base {
-    archivesName = id
+    archivesName = archive_name
 }
 
 java {
@@ -110,6 +111,9 @@ unimined.minecraft(sourceSets.getByName("lexforge")) {
         mixinConfig("$id.mixins.json")
         loader(catalog.versions.lexforge.get())
     }
+
+    defaultRemapJar = false
+    createJarTask = false
 
     runs {
         all {
@@ -232,11 +236,23 @@ tasks {
         }
     }
 
-    named<Jar>("fabricJar") {
+    named<Jar>("sourcesJar") {
+        from(sourceSets.map { it.allSource })
+
         duplicatesStrategy = DuplicatesStrategy.WARN
     }
 
-    named<Jar>("lexforgeJar") {
+    jar {
+        archiveClassifier = "mojmap"
+    }
+
+    named<Jar>("fabricJar") {
         duplicatesStrategy = DuplicatesStrategy.WARN
+
+        archiveClassifier = ""
+    }
+
+    named<Jar>("remapFabricJar") {
+        archiveClassifier = ""
     }
 }

@@ -44,8 +44,8 @@ jobs:
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
 
           files: |
-            nested/build/libs/!(*-@(dev|sources|javadoc)).jar
-            nested/build/libs/*-@(dev|sources|javadoc).jar
+            build/libs/!(*-@(mojmap|sources)).jar
+            build/libs/*-@(mojmap|sources).jar
 
           version: ${{ github.ref_name }}
 
@@ -54,17 +54,14 @@ jobs:
 
           game-versions: |
             1.20.1
-            [1.21, 1.21.1]
           game-version-filter: releases
 
           dependencies: |
             fabric-language-kotlin
-            jade(optional)
-            wthit(optional)
+            moonlight{curseforge:499980}
 
           java: |
             17
-            21
 
       - name: Commit CHANGELOG.md
         uses: stefanzweifel/git-auto-commit-action@v5
