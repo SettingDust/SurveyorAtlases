@@ -59,6 +59,8 @@ jobs:
           dependencies: |
             fabric-language-kotlin
             moonlight{curseforge:499980}
+            surveyor#{ignore:curseforge}
+            surveystones(optional)#{ignore:curseforge}
 
           java: |
             17
