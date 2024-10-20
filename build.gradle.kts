@@ -94,12 +94,6 @@ unimined.minecraft {
             off = true
         }
 
-        mods {
-            modImplementation {
-                namespace("intermediary")
-            }
-        }
-
         defaultRemapJar = false
     }
 }
