@@ -6,7 +6,9 @@ Surveyor Atlases enhances [Map Atlases](https://www.curseforge.com/minecraft/mc-
 
 The mod delegates the rendering of structures and landmarks to Moonlight Markers, providing a clean and organized map view.
 
+Recommend setting the `terrain = DISABLED` on server side in Surveyor config(surveyor.toml) since the Map Atlases is rendering the terrain by itself. Will save performance and save size.
+
 Currently supported markers include:
 - [Supplementaries](https://modrinth.com/mod/supplementaries):
-  - Waystones via [Surveystones](https://modrinth.com/mod/surveystones)
-  - Bells, beds, lodestones, Nether portals, and structures
+    - Waystones via [Surveystones](https://modrinth.com/mod/surveystones)
+    - Bells, beds, lodestones, Nether portals, and structures
