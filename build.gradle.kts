@@ -1,22 +1,26 @@
+@file:Suppress("UnstableApiUsage")
+
+//import earth.terrarium.cloche.IncludeTransformationState
+import earth.terrarium.cloche.IncludeTransformationState
+import earth.terrarium.cloche.RemapNamespaceAttribute
+import earth.terrarium.cloche.api.target.FabricTarget
 import groovy.lang.Closure
-import org.gradle.jvm.tasks.Jar
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java
-    alias(catalog.plugins.kotlin.jvm)
 
-    alias(catalog.plugins.git.version)
+    kotlin("jvm") version "2.1.10"
+    kotlin("plugin.serialization") version "2.1.10"
 
-    alias(catalog.plugins.unmined)
+    id("com.palantir.git-version") version "3.1.0"
+
+    id("com.gradleup.shadow") version "8.3.6"
+
+    id("earth.terrarium.cloche") version "0.11.5"
 }
 
 val archive_name: String by rootProject.properties
 val id: String by rootProject.properties
-val name: String by rootProject.properties
-val author: String by rootProject.properties
-val description: String by rootProject.properties
 val source: String by rootProject.properties
 
 group = "settingdust.surveyor_atlases"
@@ -24,229 +28,241 @@ group = "settingdust.surveyor_atlases"
 val gitVersion: Closure<String> by extra
 version = gitVersion()
 
-base {
-    archivesName = archive_name
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-
-    withSourcesJar()
-}
+base { archivesName = archive_name }
 
 repositories {
-    unimined.curseMaven()
-    unimined.modrinthMaven()
-
-    maven("https://repo.sleeping.town/") {
-        content {
-            includeGroup("folk.sisby")
+    exclusiveContent {
+        forRepository {
+            maven("https://api.modrinth.com/maven")
+        }
+        filter {
+            includeGroup("maven.modrinth")
         }
     }
 
-    maven("https://maven.su5ed.dev/releases") {
-        content {
+    exclusiveContent {
+        forRepository {
+            maven("https://maven.su5ed.dev/releases")
+        }
+        filter {
             includeGroupAndSubgroups("dev.su5ed")
             includeGroupAndSubgroups("org.sinytra")
         }
     }
 
-    maven("https://thedarkcolour.github.io/KotlinForForge/") {
-        content { includeGroup("thedarkcolour") }
+    maven("https://modmaven.dev") {
+        content {
+            includeGroup("mezz.jei")
+        }
     }
+
+    maven("https://thedarkcolour.github.io/KotlinForForge/") {
+        content {
+            includeGroup("thedarkcolour")
+        }
+    }
+
+    maven("https://maven.ladysnake.org/releases") {
+        content {
+            includeGroup("dev.onyxstudios.cardinal-components-api")
+        }
+    }
+
+    mavenCentral()
+
+    cloche {
+        librariesMinecraft()
+        main()
+        mavenFabric()
+        mavenForge()
+        mavenNeoforged()
+        mavenNeoforgedMeta()
+        mavenParchment()
+    }
+
+    mavenLocal()
 }
 
-sourceSets {
-    create("fabric")
-    create("lexforge")
-}
 
-val mainImplementation by configurations.creating
-val fabricImplementation by configurations.getting {
-    isCanBeResolved = true
-}
-val lexforgeImplementation by configurations.getting {
-    isCanBeResolved = true
-}
+cloche {
+    metadata {
+        modId = id
+        name = rootProject.property("name").toString()
+        description = rootProject.property("description").toString()
+        license = "CC-BY-SA 4.0"
+        icon = "assets/$id/icon.png"
+        sources = source
+        issues = "$source/issues"
+        author("SettingDust")
 
-unimined.minecraft {
-    version(catalog.versions.minecraft.get())
+        dependency {
+            modId = "minecraft"
+            version {
+                start = "1.20.1"
+            }
+        }
+
+        dependency {
+            modId = "moonlight"
+        }
+
+        dependency {
+            modId = "surveyor"
+        }
+    }
 
     mappings {
-        intermediary()
-        mojmap()
-        parchment(version = "2023.09.03")
-
-        devFallbackNamespace("official")
+        official()
     }
 
-    if (sourceSet == sourceSets.main.get()) {
-        fabric {
-            loader(catalog.versions.fabric.loader.get())
+    common {
+        mixins.from(file("src/common/main/resources/surveyor_atlases.mixins.json"))
+
+        dependencies {
+            compileOnly("org.spongepowered:mixin:0.8.7")
+        }
+    }
+
+    fabric {
+        minecraftVersion = "1.20.1"
+
+        metadata {
+            entrypoint("main") {
+                adapter = "kotlin"
+                value = "settingdust.surveyor_atlases.fabric.EntrypointKt::init"
+            }
+
+            entrypoint("client") {
+                adapter = "kotlin"
+                value = "settingdust.surveyor_atlases.fabric.EntrypointKt::clientInit"
+            }
+
+            dependency {
+                modId = "fabric-api"
+            }
+
+            dependency {
+                modId = "fabric-language-kotlin"
+            }
         }
 
         runs {
-            off = true
+            client()
         }
 
-        defaultRemapJar = false
-    }
-}
+        dependencies {
+            fabricApi("0.92.6")
 
-unimined.minecraft(sourceSets.getByName("lexforge")) {
-    combineWith(sourceSets.main.get())
+            modImplementation("net.fabricmc:fabric-language-kotlin:1.13.1+kotlin.2.1.10")
 
-    minecraftForge {
-        mixinConfig("$id.mixins.json")
-        loader(catalog.versions.lexforge.get())
-    }
+            modImplementation(catalog.surveyor.get1().get20()) {
+                attributes {
+                    attribute(IncludeTransformationState.ATTRIBUTE, IncludeTransformationState.Extracted)
+                }
+            }
+            modImplementation(catalog.surveystones.get1().get20())
 
-    defaultRemapJar = false
-    createJarTask = false
-
-    runs {
-        all {
-            jvmArgs("-Dmixin.env.disableRefMap=true")
-            systemProperties["mixin.env.disableRefMap"] = true
-        }
-    }
-}
-
-unimined.minecraft(sourceSets.getByName("fabric")) {
-    combineWith(sourceSets.main.get())
-
-    fabric {
-        loader(catalog.versions.fabric.loader.get())
-    }
-}
-
-val modImplementation by configurations.getting
-val fabricModImplementation by configurations.getting
-val lexforgeModImplementation by configurations.getting
-
-val lexforgeRuntimeOnly by configurations.getting
-val lexforgeMinecraftLibraries by configurations.getting
-
-dependencies {
-    mainImplementation(catalog.mixin)
-    mainImplementation(catalog.mixinextras.common)
-
-    unimined.fabricApi.fabric(catalog.versions.fabric.api.get()).let {
-        modImplementation(it)
-        fabricModImplementation(it)
-    }
-
-    catalog.fabric.kotlin.let {
-        modImplementation(it)
-        fabricModImplementation(it)
-    }
-
-    lexforgeMinecraftLibraries(catalog.sinytra.connector)
-    lexforgeModImplementation(catalog.forgified.fabric.api) {
-        exclude(module = "fabric-loader")
-    }
-    lexforgeModImplementation(catalog.kotlin.forge)
-
-    catalog.surveyor.let {
-        modImplementation(it) {
-            exclude(group = "net.fabricmc")
-            exclude(group = "net.fabricmc.fabric-api")
-        }
-        fabricModImplementation(it) {
-            exclude(group = "net.fabricmc")
-            exclude(group = "net.fabricmc.fabric-api")
-        }
-        lexforgeImplementation(it) {
-            exclude(group = "net.fabricmc")
-            exclude(group = "net.fabricmc.fabric-api")
+            modImplementation(catalog.moonlight.get1().get20().fabric)
+            modImplementation(catalog.supplementaries.get1().get20().fabric)
+            modImplementation(catalog.mapAtlases.get1().get20().fabric)
+            modRuntimeOnly(catalog.cardinalComponentsApi.base.get1().get20())
+            modRuntimeOnly(catalog.cardinalComponentsApi.item.get1().get20())
         }
     }
 
-    catalog.surveystones.let {
-        modImplementation(it)
-        fabricModImplementation(it)
-        lexforgeImplementation(it)
+    forge {
+        minecraftVersion = "1.20.1"
+        loaderVersion = "47.3.29"
+
+        metadata {
+            modLoader = "kotlinforforge"
+            loaderVersion {
+                start = "4"
+            }
+
+            dependency {
+                modId = "fabric_api"
+            }
+        }
+
+        runs {
+            client()
+        }
+
+        mappings {
+            fabricIntermediary()
+        }
+
+        repositories {
+            maven("https://repo.spongepowered.org/maven") {
+                content {
+                    includeGroup("org.spongepowered")
+                }
+            }
+        }
+
+        dependencies {
+            implementation("org.spongepowered:mixin:0.8.7")
+            implementation(catalog.mixinextras.forge) {
+                attributes {
+                    attribute(IncludeTransformationState.ATTRIBUTE, IncludeTransformationState.Extracted)
+                }
+            }
+
+            modImplementation("thedarkcolour:kotlinforforge:4.10.0")
+
+            modImplementation("dev.su5ed.sinytra.fabric-api:fabric-api:0.92.2+1.11.11+1.20.1")
+
+            modImplementation(catalog.surveyor.get1().get20()) {
+                attributes {
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+            modImplementation(catalog.surveystones.get1().get20()) {
+                attributes {
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+
+            modImplementation(catalog.moonlight.get1().get20().forge)
+            modImplementation(catalog.supplementaries.get1().get20().forge)
+            modImplementation(catalog.mapAtlases.get1().get20().forge)
+            modRuntimeOnly(catalog.cardinalComponentsApi.base.get1().get20()) {
+                isTransitive = false
+                attributes {
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+            modRuntimeOnly(catalog.cardinalComponentsApi.item.get1().get20()) {
+                isTransitive = false
+                attributes {
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+        }
     }
 
-    catalog.moonlight.fabric.let {
-        modImplementation(it)
-        fabricModImplementation(it)
-    }
-    lexforgeModImplementation(catalog.moonlight.forge)
+    targets.withType<FabricTarget> {
+        loaderVersion = "0.16.14"
 
-    catalog.map.atlases.fabric.let {
-        modImplementation(it)
-        fabricModImplementation(it)
+        includedClient()
     }
-    lexforgeModImplementation(catalog.map.atlases.forge)
 
-    catalog.supplementaries.fabric.let {
-        modImplementation(it)
-        fabricModImplementation(it)
+    targets.all {
+        mappings {
+            parchment(minecraftVersion.map {
+                when (it) {
+                    "1.20.1" -> "2023.09.03"
+                    "1.21.1" -> "2024.11.17"
+                    else -> throw IllegalArgumentException("Unsupported minecraft version $it")
+                }
+            })
+        }
     }
-    lexforgeModImplementation(catalog.supplementaries.forge)
 }
 
 tasks {
     withType<ProcessResources> {
-        val properties = mapOf(
-            "id" to id,
-            "version" to rootProject.version,
-            "group" to rootProject.group,
-            "name" to rootProject.name,
-            "description" to rootProject.property("description").toString(),
-            "author" to rootProject.property("author").toString(),
-            "source" to rootProject.property("source").toString(),
-            "fabric_loader" to ">=0.15",
-            "minecraft" to ">=1.20.1",
-            "fabric_kotlin" to "*",
-            "moonlight" to "*",
-            "surveyor" to ">=0.6"
-        )
-        from(rootProject.sourceSets.main.get().resources)
-        inputs.properties(properties)
-
-        filesMatching(
-            listOf(
-                "fabric.mod.json",
-                "META-INF/neoforge.mods.toml",
-                "META-INF/mods.toml",
-                "*.mixins.json",
-                "META-INF/MANIFEST.MF"
-            )
-        ) {
-            expand(properties)
-        }
-    }
-
-    withType<KotlinCompile> {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
-    }
-
-    named<Jar>("sourcesJar") {
-        from(sourceSets.map { it.allSource })
-
         duplicatesStrategy = DuplicatesStrategy.WARN
-    }
-
-    jar {
-        archiveClassifier = "mojmap"
-    }
-
-    named<Jar>("fabricJar") {
-        duplicatesStrategy = DuplicatesStrategy.WARN
-
-        archiveClassifier = "dev"
-    }
-
-    named<Jar>("remapFabricJar") {
-        archiveClassifier = ""
     }
 }

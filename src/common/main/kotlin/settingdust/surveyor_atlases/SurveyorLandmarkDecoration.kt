@@ -59,7 +59,7 @@ class SurveyorLandmarkDecoration : CustomMapDecoration {
 
     constructor(type: MapDecorationType<*, *>, buf: FriendlyByteBuf) : super(type, buf) {
         this.mark = if (buf.readBoolean()) {
-            WorldSummary.of(Minecraft.getInstance().level).landmarks!!.get(
+            WorldSummary.of(Minecraft.getInstance().level).landmarks()!!.get(
                 Landmarks.getType(buf.readResourceLocation()),
                 buf.readBlockPos()
             )

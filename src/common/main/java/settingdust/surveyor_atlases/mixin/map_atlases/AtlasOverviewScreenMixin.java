@@ -12,10 +12,11 @@ import java.util.Collection;
 @Mixin(AtlasOverviewScreen.class)
 public class AtlasOverviewScreenMixin {
     @ModifyExpressionValue(
-        method = "addDecorationWidgets", at = @At(
-        value = "INVOKE",
-        target = "Lpepjebs/mapatlases/integration/moonlight/MoonlightCompat;getCustomDecorations(Lpepjebs/mapatlases/utils/MapDataHolder;)Ljava/util/Collection;"
-    )
+        method = "addDecorationWidgets",
+        at = @At(
+            value = "INVOKE",
+            target = "Lpepjebs/mapatlases/integration/moonlight/MoonlightCompat;getCustomDecorations(Lpepjebs/mapatlases/utils/MapDataHolder;)Ljava/util/Collection;"
+        )
     )
     private Collection<DecorationHolder> surveyor_atlases$removeSurveyors(final Collection<DecorationHolder> original) {
         original.removeIf(holder -> holder.id().startsWith(SurveyorAtlases.ID));

@@ -1,80 +1,209 @@
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 dependencyResolutionManagement {
     pluginManagement {
         repositories {
-            maven("https://maven.wagyourtail.xyz/releases")
             mavenCentral()
             gradlePluginPortal()
+            maven("https://maven.msrandom.net/repository/cloche")
+            mavenLocal()
+        }
+    }
+}
+
+object VersionFormats {
+    val versionPlusMc = { mcVer: String, ver: String -> "$ver+$mcVer" }
+    val mcDashVersion = { mcVer: String, ver: String -> "$mcVer-$ver" }
+}
+
+object VersionTransformers {
+    val versionDashLoader = { ver: String, loader: String -> "$ver-$loader" }
+    val loaderUnderlineVersion = { ver: String, loader: String -> "${loader}_$ver" }
+}
+
+open class LoaderConfig(
+    val slugTransformer: (String) -> String = { it },
+    val versionTransformer: (String, String) -> String = { ver, _ -> ver }
+) {
+    companion object : LoaderConfig()
+
+    constructor(slugTransformer: (String) -> String) : this(slugTransformer, { ver, _ -> ver })
+    constructor(versionTransformer: (String, String) -> String) : this(
+        { it },
+        versionTransformer
+    )
+}
+
+data class LoaderMapping(
+    val mcVersion: String,
+    val loaders: Map<String, LoaderConfig>
+)
+
+fun VersionCatalogBuilder.modrinth(
+    id: String,
+    slug: String = id,
+    mcVersionToVersion: Map<String, String>,
+    versionFormat: (String, String) -> String = { _, v -> v },
+    mapping: List<LoaderMapping> = emptyList()
+) {
+    val allLoaders = mapping.flatMap { it.loaders.keys }.toSet()
+    val isSingleLoader = allLoaders.size == 1
+
+    mcVersionToVersion.forEach { (mcVersion, modVersion) ->
+        val config = mapping.find { it.mcVersion == mcVersion }
+            ?: error("No loader config found for MC $mcVersion")
+
+        val version = versionFormat(mcVersion, modVersion)
+
+        config.loaders.forEach { (loaderName, loader) ->
+            library(
+                if (isSingleLoader) "${id}_${mcVersion}"
+                else "${id}_${mcVersion}_$loaderName",
+                "maven.modrinth",
+                loader.slugTransformer(slug)
+            ).version(loader.versionTransformer(version, loaderName))
         }
     }
 }
 
 dependencyResolutionManagement.versionCatalogs.create("catalog") {
-    // https://github.com/palantir/gradle-git-version
-    plugin("git-version", "com.palantir.git-version").version("3.+")
-
-    plugin("shadow", "com.gradleup.shadow").version("8.+")
-
-    plugin("unmined", "xyz.wagyourtail.unimined").version("1.+")
-
-
-    val minecraft = "1.20.1"
-    version("minecraft", minecraft)
-
-
-    val kotlin = "2.0.20"
-    version("kotlin", kotlin)
-    plugin("kotlin-jvm", "org.jetbrains.kotlin.jvm").version(kotlin)
-    plugin("kotlin-plugin-serialization", "org.jetbrains.kotlin.plugin.serialization").version(kotlin)
-
-    library("kotlin-reflect", "org.jetbrains.kotlin", "kotlin-reflect").version(kotlin)
-
-    val kotlinxSerialization = "1.7.3"
-    library("kotlinx-serialization-core", "org.jetbrains.kotlinx", "kotlinx-serialization-core").version(
-        kotlinxSerialization
-    )
-    library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").version(
-        kotlinxSerialization
-    )
-
-    library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").version("1.9.0")
-
-    // https://modrinth.com/mod/kinecraft-serialization/versions
-    library("kinecraft-serialization", "maven.modrinth", "kinecraft-serialization").version("1.16.0")
-
-    // https://linkie.shedaniel.dev/dependencies?loader=fabric
-    version("fabric-loader", "0.16.7")
-    version("fabric-api", "0.92.2+$minecraft")
-    library("fabric-kotlin", "net.fabricmc", "fabric-language-kotlin").version("1.12.2+kotlin.$kotlin")
-
-    // https://linkie.shedaniel.dev/dependencies?loader=forge
-    version("lexforge", "47.3.11")
-    library("forgified-fabric-api", "dev.su5ed.sinytra.fabric-api", "fabric-api").version("0.92.2+1.11.8+$minecraft")
-    library("sinytra-connector", "org.sinytra", "Connector").version("1.0.0-beta.46+$minecraft")
-    library("kotlin-forge", "thedarkcolour", "kotlinforforge").version("4.11.0")
-
-    library("mixin", "org.spongepowered", "mixin").version("0.8.7")
     val mixinextras = "0.5.0-beta.2"
-    library("mixinextras-common", "io.github.llamalad7", "mixinextras-common").version(mixinextras)
-    library("mixinextras-lexforge", "io.github.llamalad7", "mixinextras-forge").version(mixinextras)
+    library("mixinextras-forge", "io.github.llamalad7", "mixinextras-forge").version(mixinextras)
     library("mixinextras-fabric", "io.github.llamalad7", "mixinextras-fabric").version(mixinextras)
 
-    library("surveyor", "folk.sisby", "surveyor").version("0.6.25+1.20")
-    library("surveystones", "maven.modrinth", "surveystones").version("1.3.1+1.20")
+    modrinth(
+        id = "surveyor",
+        mcVersionToVersion = mapOf(
+            "1.20" to "0.6.26",
+            "1.21" to "0.6.26"
+        ),
+        versionFormat = VersionFormats.versionPlusMc,
+        mapping = listOf(
+            LoaderMapping(
+                mcVersion = "1.21", loaders = mapOf(
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            ),
+            LoaderMapping(
+                mcVersion = "1.20", loaders = mapOf(
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            )
+        )
+    )
 
-    library("moonlight-fabric", "maven.modrinth", "moonlight").version("fabric_1.20-2.13.10")
-    library("moonlight-forge", "maven.modrinth", "moonlight").version("forge_1.20-2.13.10")
+    modrinth(
+        id = "surveystones",
+        mcVersionToVersion = mapOf(
+            "1.20" to "1.3.1",
+            "1.21" to "1.3.1"
+        ),
+        versionFormat = VersionFormats.versionPlusMc,
+        mapping = listOf(
+            LoaderMapping(
+                mcVersion = "1.21", loaders = mapOf(
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            ),
+            LoaderMapping(
+                mcVersion = "1.20", loaders = mapOf(
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            )
+        )
+    )
 
-    // https://www.curseforge.com/minecraft/mc-mods/map-atlases/files/all?page=1&pageSize=20
-    library("map-atlases-fabric", "curse.maven", "map-atlases-436298").version("5626092")
-    // https://www.curseforge.com/minecraft/mc-mods/map-atlases-forge/files/all?page=1&pageSize=20
-    library("map-atlases-forge", "curse.maven", "map-atlases-forge-519759").version("5626093")
+    modrinth(
+        id = "moonlight",
+        mcVersionToVersion = mapOf(
+            "1.20" to "2.14.13",
+            "1.21" to "2.19.5"
+        ),
+        versionFormat = VersionFormats.mcDashVersion,
+        mapping = listOf(
+            LoaderMapping(
+                mcVersion = "1.21", loaders = mapOf(
+                    "forge" to LoaderConfig(VersionTransformers.versionDashLoader),
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            ),
+            LoaderMapping(
+                mcVersion = "1.20", loaders = mapOf(
+                    "forge" to LoaderConfig(VersionTransformers.versionDashLoader),
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            )
+        )
+    )
 
-    library("supplementaries-fabric", "maven.modrinth", "supplementaries").version("1.20-2.8.17-fabric")
-    library("supplementaries-forge", "maven.modrinth", "supplementaries").version("1.20-2.8.17-forge")
+    modrinth(
+        id = "mapAtlases",
+        slug = "map-atlases",
+        mcVersionToVersion = mapOf(
+            "1.20" to "6.0.16",
+            "1.21" to "6.3.5"
+        ),
+        versionFormat = VersionFormats.mcDashVersion,
+        mapping = listOf(
+            LoaderMapping(
+                mcVersion = "1.21", loaders = mapOf(
+                    "forge" to LoaderConfig(
+                        slugTransformer = { "$it-forge" },
+                        VersionTransformers.loaderUnderlineVersion
+                    ),
+                    "fabric" to LoaderConfig(VersionTransformers.loaderUnderlineVersion)
+                )
+            ),
+            LoaderMapping(
+                mcVersion = "1.20", loaders = mapOf(
+                    "forge" to LoaderConfig(
+                        slugTransformer = { "$it-forge" },
+                        VersionTransformers.versionDashLoader
+                    ),
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            )
+        )
+    )
+
+    modrinth(
+        id = "supplementaries",
+        mcVersionToVersion = mapOf(
+            "1.20" to "3.1.36",
+            "1.21" to "6.3.5"
+        ),
+        versionFormat = VersionFormats.mcDashVersion,
+        mapping = listOf(
+            LoaderMapping(
+                mcVersion = "1.21", loaders = mapOf(
+                    "forge" to LoaderConfig(VersionTransformers.loaderUnderlineVersion),
+                    "fabric" to LoaderConfig(VersionTransformers.loaderUnderlineVersion)
+                )
+            ),
+            LoaderMapping(
+                mcVersion = "1.20", loaders = mapOf(
+                    "forge" to LoaderConfig(VersionTransformers.versionDashLoader),
+                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
+                )
+            )
+        )
+    )
+
+    val cardinalComponentsApi120 = "5.2.3"
+    library("cardinalComponentsApi-base-1.20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-base")
+        .version(cardinalComponentsApi120)
+    library("cardinalComponentsApi-item-1.20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-item")
+        .version(cardinalComponentsApi120)
+
+    val cardinalComponentsApi121 = "6.1.2"
+    library("cardinalComponentsApi-base-1.21", "org.ladysnake.cardinal-components-api", "cardinal-components-base")
+        .version(cardinalComponentsApi121)
+    library("cardinalComponentsApi-item-1.21", "org.ladysnake.cardinal-components-api", "cardinal-components-item")
+        .version(cardinalComponentsApi121)
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
 val name: String by settings

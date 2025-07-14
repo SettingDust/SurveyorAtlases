@@ -15,10 +15,10 @@ object SurveyorAtlases {
     const val ID = "surveyor_atlases"
     val LOGGER = LogManager.getLogger()
 
-    val SURVEYOR_LANDMARK_ID = identifier("surveyor_landmark")
-    val SURVEYOR_STRUCTURE_ID = identifier("surveyor_structure")
+    val SURVEYOR_LANDMARK_ID = id("surveyor_landmark")
+    val SURVEYOR_STRUCTURE_ID = id("surveyor_structure")
 
-    fun identifier(path: String) = ResourceLocation(ID, path)
+    fun id(path: String) = ResourceLocation(ID, path)
 
     object MapDecorationTypes {
         val SURVEYOR_LANDMARK = CustomDecorationType.simple(::SurveyorLandmarkMarker, ::SurveyorLandmarkDecoration)
@@ -54,11 +54,11 @@ fun init() {
         val registryAccess = level.registryAccess()
         val structureRegistry = registryAccess.lookupOrThrow(Registries.STRUCTURE)
         buildSet {
-            worldSummary.landmarks?.asMap(exploration)?.forEach { (_, marks) ->
+            worldSummary.landmarks()?.asMap(exploration)?.forEach { (_, marks) ->
                 addAll(marks.values.map { SurveyorLandmarkMarker(it) })
             }
 
-            worldSummary.structures?.asMap(exploration)?.forEach { (key, structures) ->
+            worldSummary.structures()?.asMap(exploration)?.forEach { (key, structures) ->
                 addAll(structures.entries.map {
                     SurveyorStructureMarker(
                         it.key,
