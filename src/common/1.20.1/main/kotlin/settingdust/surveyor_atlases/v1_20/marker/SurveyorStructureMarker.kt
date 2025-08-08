@@ -1,4 +1,4 @@
-package settingdust.surveyor_atlases
+package settingdust.surveyor_atlases.v1_20.marker
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
@@ -24,7 +24,7 @@ class SurveyorStructureMarker(
     structureSummary: StructureStartSummary? = null,
     val structure: Holder<Structure>? = null
 ) :
-    MapBlockMarker<SurveyorStructureDecoration>(SurveyorAtlases.MapDecorationTypes.SURVEYOR_STRUCTURE) {
+    MapBlockMarker<SurveyorStructureDecoration>(SurveyorAtlasesMarkers.SURVEYOR_STRUCTURE) {
     constructor(type: MapDecorationType<*, *>) : this()
 
     init {
@@ -43,7 +43,7 @@ class SurveyorStructureDecoration : CustomMapDecoration {
         x: Byte,
         y: Byte,
         decorationType: MapDecorationType<*, *>
-    ) : super(SurveyorAtlases.MapDecorationTypes.SURVEYOR_STRUCTURE, x, y, 0, null) {
+    ) : super(SurveyorAtlasesMarkers.SURVEYOR_STRUCTURE, x, y, 0, null) {
         this.decorationType = decorationType
     }
 
@@ -75,7 +75,17 @@ class SurveyorStructureDecorationRenderer(texture: ResourceLocation?) :
         rendersText: Boolean
     ): Boolean {
         currentDecoration = decoration
-        return super.render(decoration, matrixStack, vertexBuilder, buffer, mapData, isOnFrame, light, index, rendersText)
+        return super.render(
+            decoration,
+            matrixStack,
+            vertexBuilder,
+            buffer,
+            mapData,
+            isOnFrame,
+            light,
+            index,
+            rendersText
+        )
     }
 
     override fun renderDecorationSprite(
@@ -88,7 +98,8 @@ class SurveyorStructureDecorationRenderer(texture: ResourceLocation?) :
         alpha: Int,
         outline: Boolean
     ) {
-        MapDecorationClientManager.getRenderer(currentDecoration!!.decorationType as MapDecorationType<CustomMapDecoration, *>).renderDecorationSprite(matrixStack, buffer, vertexBuilder, light, index, color, alpha, outline)
+        MapDecorationClientManager.getRenderer(currentDecoration!!.decorationType)
+            .renderDecorationSprite(matrixStack, buffer, vertexBuilder, light, index, color, alpha, outline)
         currentDecoration = null
     }
 }

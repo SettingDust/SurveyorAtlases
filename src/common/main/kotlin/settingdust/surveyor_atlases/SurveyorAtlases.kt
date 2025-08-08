@@ -1,84 +1,46 @@
 package settingdust.surveyor_atlases
 
-import folk.sisby.surveyor.SurveyorExploration
 import folk.sisby.surveyor.WorldSummary
-import net.fabricmc.loader.api.FabricLoader
-import net.mehvahdjukaar.moonlight.api.map.MapDataRegistry
-import net.mehvahdjukaar.moonlight.api.map.client.MapDecorationClientManager
-import net.mehvahdjukaar.moonlight.api.map.type.CustomDecorationType
-import net.minecraft.core.registries.Registries
+import net.mehvahdjukaar.moonlight.api.platform.PlatHelper
+import net.mehvahdjukaar.supplementaries.Supplementaries
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.server.level.ServerPlayer
 import org.apache.logging.log4j.LogManager
+import pepjebs.mapatlases.MapAtlasesMod
+import settingdust.surveyor_atlases.adapter.MinecraftAdapter
+import settingdust.surveyor_atlases.adapter.MoonlightAdapter
 
 object SurveyorAtlases {
     const val ID = "surveyor_atlases"
     val LOGGER = LogManager.getLogger()
 
-    val SURVEYOR_LANDMARK_ID = id("surveyor_landmark")
-    val SURVEYOR_STRUCTURE_ID = id("surveyor_structure")
+    val SURVEYOR_LANDMARK_ID: ResourceLocation
+    val SURVEYOR_STRUCTURE_ID: ResourceLocation
 
-    fun id(path: String) = ResourceLocation(ID, path)
+    init {
+        ServiceLoaderUtil.defaultLogger = LOGGER
 
-    object MapDecorationTypes {
-        val SURVEYOR_LANDMARK = CustomDecorationType.simple(::SurveyorLandmarkMarker, ::SurveyorLandmarkDecoration)
-        val SURVEYOR_STRUCTURE = CustomDecorationType.simple(::SurveyorStructureMarker, ::SurveyorStructureDecoration)
+        SURVEYOR_LANDMARK_ID = id("surveyor_landmark")
+        SURVEYOR_STRUCTURE_ID = id("surveyor_structure")
+
+        requireNotNull(MoonlightAdapter)
     }
+
+    fun id(path: String) = MinecraftAdapter.id(ID, path)
 
     object Compats {
         val MAP_ATLASES by lazy {
-            FabricLoader.getInstance().isModLoaded("map_atlases")
+            PlatHelper.isModLoaded(MapAtlasesMod.MOD_ID)
         }
         val SUPPLEMENTARIES by lazy {
-            FabricLoader.getInstance().isModLoaded("supplementaries")
+            PlatHelper.isModLoaded(Supplementaries.MOD_ID)
         }
         val SURCEYSTONES by lazy {
-            FabricLoader.getInstance().isModLoaded("surveystones")
+            PlatHelper.isModLoaded("surveystones")
         }
     }
 }
 
 fun init() {
-    MapDataRegistry.registerCustomType(SurveyorAtlases.SURVEYOR_STRUCTURE_ID) { SurveyorAtlases.MapDecorationTypes.SURVEYOR_STRUCTURE }
-    MapDataRegistry.registerCustomType(SurveyorAtlases.SURVEYOR_LANDMARK_ID) { SurveyorAtlases.MapDecorationTypes.SURVEYOR_LANDMARK }
-
     WorldSummary.enableLandmarks()
     WorldSummary.enableStructures()
-
-    MapDataRegistry.addDynamicServerMarkersEvent { player, _, data ->
-        val level = player.level()
-        if (data.dimension != level.dimension()) return@addDynamicServerMarkersEvent setOf()
-        val worldSummary = WorldSummary.of(level)
-        val exploration = SurveyorExploration.of(player as ServerPlayer)
-
-        val registryAccess = level.registryAccess()
-        val structureRegistry = registryAccess.lookupOrThrow(Registries.STRUCTURE)
-        buildSet {
-            worldSummary.landmarks()?.asMap(exploration)?.forEach { (_, marks) ->
-                addAll(marks.values.map { SurveyorLandmarkMarker(it) })
-            }
-
-            worldSummary.structures()?.asMap(exploration)?.forEach { (key, structures) ->
-                addAll(structures.entries.map {
-                    SurveyorStructureMarker(
-                        it.key,
-                        it.value,
-                        structureRegistry.getOrThrow(key)
-                    )
-                })
-            }
-        }
-    }
-}
-
-fun clientInit() {
-    MapDecorationClientManager.registerCustomRenderer(
-        SurveyorAtlases.SURVEYOR_STRUCTURE_ID,
-        ::SurveyorStructureDecorationRenderer
-    )
-
-    MapDecorationClientManager.registerCustomRenderer(
-        SurveyorAtlases.SURVEYOR_LANDMARK_ID,
-        ::SurveyorLandmarkDecorationRenderer
-    )
 }

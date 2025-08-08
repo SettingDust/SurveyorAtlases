@@ -123,7 +123,7 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
         mapping = listOf(
             LoaderMapping(
                 mcVersion = "1.21", loaders = mapOf(
-                    "forge" to LoaderConfig(VersionTransformers.versionDashLoader),
+                    "neoforge" to LoaderConfig(VersionTransformers.versionDashLoader),
                     "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
                 )
             ),
@@ -147,7 +147,7 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
         mapping = listOf(
             LoaderMapping(
                 mcVersion = "1.21", loaders = mapOf(
-                    "forge" to LoaderConfig(
+                    "neoforge" to LoaderConfig(
                         slugTransformer = { "$it-forge" },
                         VersionTransformers.loaderUnderlineVersion
                     ),
@@ -170,13 +170,13 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
         id = "supplementaries",
         mcVersionToVersion = mapOf(
             "1.20" to "3.1.36",
-            "1.21" to "6.3.5"
+            "1.21" to "3.3.5"
         ),
         versionFormat = VersionFormats.mcDashVersion,
         mapping = listOf(
             LoaderMapping(
                 mcVersion = "1.21", loaders = mapOf(
-                    "forge" to LoaderConfig(VersionTransformers.loaderUnderlineVersion),
+                    "neoforge" to LoaderConfig(VersionTransformers.loaderUnderlineVersion),
                     "fabric" to LoaderConfig(VersionTransformers.loaderUnderlineVersion)
                 )
             ),

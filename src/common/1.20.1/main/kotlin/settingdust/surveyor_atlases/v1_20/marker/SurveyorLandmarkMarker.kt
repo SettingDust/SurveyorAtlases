@@ -1,4 +1,4 @@
-package settingdust.surveyor_atlases
+package settingdust.surveyor_atlases.v1_20.marker
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
@@ -27,13 +27,14 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.FastColor
 import net.minecraft.world.entity.ai.village.poi.PoiTypes
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData
+import settingdust.surveyor_atlases.SurveyorAtlases
 import settingdust.surveyor_atlases.mixin.map_atlases.MoonlightCompatAccessor
 
 
 class SurveyorLandmarkMarker(
     val mark: Landmark<*>? = null
 ) :
-    MapBlockMarker<SurveyorLandmarkDecoration>(SurveyorAtlases.MapDecorationTypes.SURVEYOR_LANDMARK) {
+    MapBlockMarker<SurveyorLandmarkDecoration>(SurveyorAtlasesMarkers.SURVEYOR_LANDMARK) {
     constructor(type: MapDecorationType<*, *>) : this()
 
     init {
@@ -53,7 +54,7 @@ class SurveyorLandmarkDecoration : CustomMapDecoration {
         x: Byte,
         y: Byte,
         mark: Landmark<*>?
-    ) : super(SurveyorAtlases.MapDecorationTypes.SURVEYOR_LANDMARK, x, y, 0, mark?.name()) {
+    ) : super(SurveyorAtlasesMarkers.SURVEYOR_LANDMARK, x, y, 0, mark?.name()) {
         this.mark = mark
     }
 
@@ -124,18 +125,18 @@ class SurveyorLandmarkDecorationRenderer(texture: ResourceLocation?) :
     ) {
         val mark = currentDecoration!!.mark
         val defaultRenderer by lazy {
-            MapDecorationClientManager.getRenderer(MapDataRegistry.getDefaultType() as MapDecorationType<CustomMapDecoration, *>)
+            MapDecorationClientManager.getRenderer(MapDataRegistry.getDefaultType())
         }
         val renderer = when (mark) {
             is SimplePointLandmark -> {
                 if (SurveyorAtlases.Compats.MAP_ATLASES) {
-                    MapDecorationClientManager.getRenderer(MapDataRegistry.get(MoonlightCompatAccessor.getPinTypeId()) as MapDecorationType<CustomMapDecoration, *>)
+                    MapDecorationClientManager.getRenderer(MapDataRegistry.get(MoonlightCompatAccessor.getPinTypeId()))
                 } else defaultRenderer
             }
 
             is PlayerDeathLandmark -> {
                 if (SurveyorAtlases.Compats.SUPPLEMENTARIES) {
-                    MapDecorationClientManager.getRenderer(MapDataRegistry.get(Supplementaries.res("death_marker")) as MapDecorationType<CustomMapDecoration, *>)
+                    MapDecorationClientManager.getRenderer(MapDataRegistry.get(Supplementaries.res("death_marker")))
                 } else defaultRenderer
             }
 
@@ -154,7 +155,7 @@ class SurveyorLandmarkDecorationRenderer(texture: ResourceLocation?) :
                                 Supplementaries.res(
                                     "bell"
                                 )
-                            ) as MapDecorationType<CustomMapDecoration, *>
+                            )
                         )
 
                         PoiTypes.LODESTONE -> MapDecorationClientManager.getRenderer(
@@ -162,7 +163,7 @@ class SurveyorLandmarkDecorationRenderer(texture: ResourceLocation?) :
                                 Supplementaries.res(
                                     "lodestone"
                                 )
-                            ) as MapDecorationType<CustomMapDecoration, *>
+                            )
                         )
 
                         else -> defaultRenderer
