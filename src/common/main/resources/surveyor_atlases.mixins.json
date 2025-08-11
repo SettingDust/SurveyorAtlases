@@ -6,8 +6,5 @@
     "refmap": "surveyor_atlases.refmap.json",
     "mixins": [
         "map_atlases.MoonlightCompatAccessor"
-    ],
-    "client": [
-        "map_atlases.AtlasOverviewScreenMixin"
     ]
 }

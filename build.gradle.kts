@@ -18,7 +18,7 @@ plugins {
 
     id("com.gradleup.shadow") version "8.3.6"
 
-    id("earth.terrarium.cloche") version "0.11.20"
+    id("earth.terrarium.cloche") version "0.11.21"
 }
 
 val archive_name: String by rootProject.properties
@@ -154,10 +154,10 @@ cloche {
                 value = "settingdust.surveyor_atlases.fabric.EntrypointKt::init"
             }
 
-            entrypoint("client") {
-                adapter = "kotlin"
-                value = "settingdust.surveyor_atlases.fabric.EntrypointKt::clientInit"
-            }
+//            entrypoint("client") {
+//                adapter = "kotlin"
+//                value = "settingdust.surveyor_atlases.fabric.EntrypointKt::clientInit"
+//            }
 
             dependency {
                 modId = "fabric-api"
@@ -198,7 +198,7 @@ cloche {
         minecraftVersion = "1.21.1"
 
         dependencies {
-            fabricApi("0.116.4")
+            fabricApi("0.116.5")
 
             modImplementation(catalog.surveyor.get1().get21()) {
                 attributes {

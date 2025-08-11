@@ -44,10 +44,9 @@ object SurveyorAtlasesMarkers {
                 }
 
                 worldSummary.structures()?.asMap(exploration)?.forEach { (key, structures) ->
-                    addAll(structures.entries.map {
+                    addAll(structures.values.map { summary ->
                         SurveyorStructureMarker(
-                            it.key,
-                            it.value,
+                            summary.boundingBox.center.atY(summary.boundingBox.maxY()),
                             structureRegistry.getOrThrow(key)
                         )
                     })

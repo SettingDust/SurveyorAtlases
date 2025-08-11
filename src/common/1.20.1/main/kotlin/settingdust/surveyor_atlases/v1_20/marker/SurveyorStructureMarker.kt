@@ -2,7 +2,6 @@ package settingdust.surveyor_atlases.v1_20.marker
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
-import folk.sisby.surveyor.structure.StructureStartSummary
 import net.mehvahdjukaar.moonlight.api.map.CustomMapDecoration
 import net.mehvahdjukaar.moonlight.api.map.MapDataRegistry
 import net.mehvahdjukaar.moonlight.api.map.client.DecorationRenderer
@@ -15,13 +14,11 @@ import net.minecraft.core.BlockPos
 import net.minecraft.core.Holder
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.levelgen.structure.Structure
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData
 
 class SurveyorStructureMarker(
-    val chunkPos: ChunkPos = ChunkPos.ZERO,
-    structureSummary: StructureStartSummary? = null,
+    pos: BlockPos = BlockPos.ZERO,
     val structure: Holder<Structure>? = null
 ) :
     MapBlockMarker<SurveyorStructureDecoration>(SurveyorAtlasesMarkers.SURVEYOR_STRUCTURE) {
@@ -29,7 +26,7 @@ class SurveyorStructureMarker(
 
     init {
         setPersistent(false)
-        pos = structureSummary?.boundingBox?.maxY()?.let { chunkPos.getMiddleBlockPosition(it) } ?: BlockPos.ZERO
+        this.pos = pos
     }
 
     override fun doCreateDecoration(mapX: Byte, mapY: Byte, rot: Byte) =

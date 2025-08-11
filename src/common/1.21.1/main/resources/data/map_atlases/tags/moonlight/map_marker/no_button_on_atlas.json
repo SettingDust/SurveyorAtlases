@@ -1,0 +1,7 @@
+{
+    "replace": false,
+    "values": [
+        "surveyor_atlases:surveyor_landmark",
+        "surveyor_atlases:surveyor_structure"
+    ]
+}

@@ -19,6 +19,7 @@ object ServiceLoaderUtil {
         val iterator = serviceLoader.stream().iterator()
         val errors = mutableListOf<Throwable>()
         var current = findNext(iterator, errors)
+        var found = false
         while (current.isSuccess) {
             val providerName: String = current.getOrThrow().type().getName()
 
@@ -26,13 +27,16 @@ object ServiceLoaderUtil {
 
             try {
                 yield(current.getOrThrow().get())
+                found = true
             } catch (t: Throwable) {
-                errors.add(t)
-                logger.debug("${prefix}Loading $providerName failed", IllegalStateException(t))
+                val e = IllegalStateException("${prefix}Loading $providerName failed", t)
+                errors.add(e)
+                logger.debug(e)
             }
 
             current = findNext<T>(iterator, errors)
         }
+        if (found) return@sequence
         val exception = IllegalStateException("Load service of $clazz failed")
         if (errors.isEmpty()) {
             exception.addSuppressed(NoSuchElementException("Can't find service for $clazz"))
@@ -49,7 +53,7 @@ object ServiceLoaderUtil {
     }
 
     inline fun <reified T> loadServices(serviceLoader: ServiceLoader<T> = load(), logger: Logger = defaultLogger) =
-        findServices(T::class.java, serviceLoader, logger)
+        findServices(T::class.java, serviceLoader, logger).count()
 
     private fun <T> findNext(
         iterator: Iterator<ServiceLoader.Provider<T>>,

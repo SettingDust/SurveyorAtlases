@@ -116,8 +116,8 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
     modrinth(
         id = "moonlight",
         mcVersionToVersion = mapOf(
-            "1.20" to "2.14.13",
-            "1.21" to "2.19.5"
+            "1.20" to "2.15.6",
+            "1.21" to "2.20.7"
         ),
         versionFormat = VersionFormats.mcDashVersion,
         mapping = listOf(
@@ -140,8 +140,8 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
         id = "mapAtlases",
         slug = "map-atlases",
         mcVersionToVersion = mapOf(
-            "1.20" to "6.0.16",
-            "1.21" to "6.3.5"
+            "1.20" to "6.0.17",
+            "1.21" to "6.3.6"
         ),
         versionFormat = VersionFormats.mcDashVersion,
         mapping = listOf(
@@ -170,7 +170,7 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
         id = "supplementaries",
         mcVersionToVersion = mapOf(
             "1.20" to "3.1.36",
-            "1.21" to "3.3.5"
+            "1.21" to "3.4.4"
         ),
         versionFormat = VersionFormats.mcDashVersion,
         mapping = listOf(

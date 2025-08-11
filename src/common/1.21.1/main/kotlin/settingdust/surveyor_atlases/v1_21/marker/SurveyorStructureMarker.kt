@@ -4,11 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.serialization.MapCodec
 import com.mojang.serialization.codecs.RecordCodecBuilder
+import net.mehvahdjukaar.moonlight.api.map.MapDataRegistry
 import net.mehvahdjukaar.moonlight.api.map.client.MapDecorationClientManager
 import net.mehvahdjukaar.moonlight.api.map.client.MapDecorationRenderer
 import net.mehvahdjukaar.moonlight.api.map.decoration.MLMapDecoration
 import net.mehvahdjukaar.moonlight.api.map.decoration.MLMapDecorationType
 import net.mehvahdjukaar.moonlight.api.map.decoration.MLMapMarker
+import net.mehvahdjukaar.moonlight.api.platform.PlatHelper
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Holder
@@ -55,8 +57,22 @@ class SurveyorStructureMarker(
         SurveyorAtlasesMarkers.SURVEYOR_STRUCTURE.holderUnsafe
     )
 
-    override fun doCreateDecoration(mapX: Byte, mapY: Byte, rot: Byte) =
-        SurveyorStructureDecoration(type, mapX, mapY, rot, name, structure)
+    private var currentStructureDecorationType: Holder<MLMapDecorationType<*, *>>? = null
+
+    override fun doCreateDecoration(mapX: Byte, mapY: Byte, rot: Byte): SurveyorStructureDecoration {
+        return SurveyorStructureDecoration(type, mapX, mapY, rot, name, currentStructureDecorationType!!)
+    }
+
+    override fun createDecorationFromMarker(data: MapItemSavedData): SurveyorStructureDecoration? {
+        val level = PlatHelper.getCurrentServer()?.getLevel(data.dimension) ?: return null
+        currentStructureDecorationType = MapDataRegistry.getDecorationFoStructure(
+            level,
+            level.registryAccess().registryOrThrow(Registries.STRUCTURE).getHolderOrThrow(structure!!)
+        )
+        val result = super.createDecorationFromMarker(data)
+        currentStructureDecorationType = null
+        return result
+    }
 }
 
 class SurveyorStructureDecoration(
@@ -65,7 +81,7 @@ class SurveyorStructureDecoration(
     y: Byte,
     rot: Byte,
     name: Optional<Component>,
-    val structure: ResourceKey<Structure>? = null
+    val decorationType: Holder<MLMapDecorationType<*, *>>
 ) : MLMapDecoration(type, x, y, rot, name) {
     companion object {
         val STREAM_CODEC = StreamCodec.composite(
@@ -74,7 +90,7 @@ class SurveyorStructureDecoration(
             ByteBufCodecs.BYTE, MLMapDecoration::getY,
             ByteBufCodecs.BYTE, MLMapDecoration::getRot,
             ComponentSerialization.OPTIONAL_STREAM_CODEC, { Optional.ofNullable(it.getDisplayName()) },
-            ResourceKey.streamCodec(Registries.STRUCTURE), { it.structure },
+            MLMapDecorationType.STREAM_CODEC, { it.decorationType },
             ::SurveyorStructureDecoration
         )
     }
@@ -121,7 +137,7 @@ class SurveyorStructureDecorationRenderer(texture: ResourceLocation?) :
         alpha: Int,
         outline: Boolean
     ) {
-        MapDecorationClientManager.getRenderer<MLMapDecoration>(currentDecoration!!.type)
+        MapDecorationClientManager.getRenderer<MLMapDecoration>(currentDecoration!!.decorationType)
             .renderDecorationSprite(matrixStack, buffer, vertexBuilder, light, index, color, alpha, outline)
         currentDecoration = null
     }

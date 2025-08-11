@@ -43,7 +43,7 @@ object SurveyorAtlasesMarkers {
 
         MapDataRegistry.addDynamicServerMarkersEvent { player, _, data ->
             val level = player.level()
-            if (data.dimension != level.dimension()) return@addDynamicServerMarkersEvent setOf()
+            if (data.dimension != level.dimension()) return@addDynamicServerMarkersEvent emptySet()
             val worldSummary = WorldSummary.of(level)
             val exploration = SurveyorExploration.of(player as ServerPlayer)
 
@@ -53,8 +53,12 @@ object SurveyorAtlasesMarkers {
                 }
 
                 worldSummary.structures()?.asMap(exploration)?.forEach { (key, structures) ->
-                    addAll(structures.entries.map {
-                        SurveyorStructureMarker(key, SURVEYOR_STRUCTURE.getHolder(player))
+                    addAll(structures.values.map { summary ->
+                        SurveyorStructureMarker(
+                            key,
+                            SURVEYOR_STRUCTURE.getHolder(player),
+                            summary.boundingBox.center.atY(summary.boundingBox.maxY())
+                        )
                     })
                 }
             }
