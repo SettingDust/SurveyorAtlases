@@ -1,10 +1,19 @@
 package settingdust.surveyor_atlases.fabric
 
 import settingdust.surveyor_atlases.SurveyorAtlases
-import settingdust.surveyor_atlases.init
+import settingdust.surveyor_atlases.util.Entrypoint
 
-fun init() {
-    init()
+object SurveyorAtlasesFabric {
+    init {
+        requireNotNull(SurveyorAtlases)
+        Entrypoint.construct()
+    }
 
-    requireNotNull(SurveyorAtlases)
+    fun init() {
+        Entrypoint.init()
+    }
+
+    fun clientInit() {
+        Entrypoint.clientInit()
+    }
 }

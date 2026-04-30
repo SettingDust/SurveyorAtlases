@@ -1,4 +1,4 @@
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+// #region Plugin Management
 
 dependencyResolutionManagement {
     pluginManagement {
@@ -6,206 +6,267 @@ dependencyResolutionManagement {
             mavenCentral()
             gradlePluginPortal()
             maven("https://maven.msrandom.net/repository/cloche")
+            maven("https://raw.githubusercontent.com/settingdust/maven/main/repository/") {
+                name = "SettingDust's Maven"
+            }
             mavenLocal()
         }
     }
 }
 
-object VersionFormats {
-    val versionPlusMc = { mcVer: String, ver: String -> "$ver+$mcVer" }
-    val mcDashVersion = { mcVer: String, ver: String -> "$mcVer-$ver" }
+// #endregion
+
+// #region Multi-Version Dependency DSL
+
+fun interface ArtifactFormatter {
+    fun format(artifact: String, loader: String, mcVersion: String): String
+
+    companion object {
+        val simple = ArtifactFormatter { artifact, _, _ -> artifact }
+        val dashLoader = ArtifactFormatter { artifact, loader, _ -> "$artifact-$loader" }
+        val dashLoaderMc = ArtifactFormatter { artifact, loader, mcVersion -> "$artifact-$loader-$mcVersion" }
+    }
 }
 
-object VersionTransformers {
-    val versionDashLoader = { ver: String, loader: String -> "$ver-$loader" }
-    val loaderUnderlineVersion = { ver: String, loader: String -> "${loader}_$ver" }
+fun interface VersionFormatter {
+    fun format(mcVer: String, version: String, loader: String): String
+
+    companion object {
+        val simple = VersionFormatter { _, version, _ -> version }
+        val dashLoader = VersionFormatter { _, version, loader -> "$version-$loader" }
+        val plusLoader = VersionFormatter { _, version, loader -> "$version+$loader" }
+        val loaderUnderscore = VersionFormatter { _, version, loader -> "${loader}_$version" }
+    }
 }
 
-open class LoaderConfig(
-    val slugTransformer: (String) -> String = { it },
-    val versionTransformer: (String, String) -> String = { ver, _ -> ver }
-) {
-    companion object : LoaderConfig()
+class LoaderVariantBuilder {
+    var artifactFormatter: ArtifactFormatter = ArtifactFormatter.simple
+    var versionFormatter: VersionFormatter = VersionFormatter.simple
 
-    constructor(slugTransformer: (String) -> String) : this(slugTransformer, { ver, _ -> ver })
-    constructor(versionTransformer: (String, String) -> String) : this(
-        { it },
-        versionTransformer
-    )
+    fun artifact(formatter: ArtifactFormatter) {
+        artifactFormatter = formatter
+    }
+
+    fun artifact(block: (artifact: String, loader: String, mcVersion: String) -> String) {
+        artifactFormatter = ArtifactFormatter(block)
+    }
+
+    fun version(formatter: VersionFormatter) {
+        versionFormatter = formatter
+    }
+
+    fun version(block: (mcVer: String, version: String, loader: String) -> String) {
+        versionFormatter = VersionFormatter(block)
+    }
+
+    internal fun build() = LoaderVariant(artifactFormatter, versionFormatter)
 }
 
-data class LoaderMapping(
-    val mcVersion: String,
-    val loaders: Map<String, LoaderConfig>
+data class LoaderVariant(
+    val artifactFormatter: ArtifactFormatter,
+    val versionFormatter: VersionFormatter
 )
 
-fun VersionCatalogBuilder.modrinth(
-    id: String,
-    slug: String = id,
-    mcVersionToVersion: Map<String, String>,
-    versionFormat: (String, String) -> String = { _, v -> v },
-    mapping: List<LoaderMapping> = emptyList()
-) {
-    val allLoaders = mapping.flatMap { it.loaders.keys }.toSet()
+class McVersionBuilder(private val mcVersion: String) {
+    private val loaders = mutableMapOf<String, LoaderVariant>()
+    var modVersion: String = ""
+
+    fun loader(name: String, block: LoaderVariantBuilder.() -> Unit = {}) {
+        loaders[name] = LoaderVariantBuilder().apply(block).build()
+    }
+
+    internal fun build() = McVersionConfig(mcVersion, modVersion, loaders)
+}
+
+data class McVersionConfig(
+    val mcVersion: String,
+    val modVersion: String,
+    val loaders: Map<String, LoaderVariant>
+)
+
+class MultiVersionDepBuilder(val id: String, val group: String) {
+    var artifact: String = id
+    var versionFormat: (String, String) -> String = { _, v -> v }
+
+    private val configs = mutableListOf<McVersionConfig>()
+
+    fun version(mcVersion: String, block: McVersionBuilder.() -> Unit) {
+        configs.add(McVersionBuilder(mcVersion).apply(block).build())
+    }
+
+    internal fun build() = MultiVersionDep(id, group, artifact, configs, versionFormat)
+}
+
+data class MultiVersionDep(
+    val id: String,
+    val group: String,
+    val artifact: String,
+    val configs: List<McVersionConfig>,
+    val versionFormat: (String, String) -> String
+)
+
+fun VersionCatalogBuilder.dependency(id: String, group: String, block: MultiVersionDepBuilder.() -> Unit) {
+    val dep = MultiVersionDepBuilder(id, group).apply(block).build()
+
+    val allLoaders = dep.configs.flatMap { it.loaders.keys }.toSet()
     val isSingleLoader = allLoaders.size == 1
+    val isSingleMcVersion = dep.configs.size == 1
 
-    mcVersionToVersion.forEach { (mcVersion, modVersion) ->
-        val config = mapping.find { it.mcVersion == mcVersion }
-            ?: error("No loader config found for MC $mcVersion")
+    dep.configs.forEach { config ->
+        val version = dep.versionFormat(config.mcVersion, config.modVersion)
+        val mcVersionName = "mc${config.mcVersion.replace(".", "")}"
 
-        val version = versionFormat(mcVersion, modVersion)
+        config.loaders.forEach { (loaderName, variant) ->
+            val finalArtifact = variant.artifactFormatter.format(dep.artifact, loaderName, config.mcVersion)
+            val finalVersion = variant.versionFormatter.format(config.mcVersion, version, loaderName)
 
-        config.loaders.forEach { (loaderName, loader) ->
-            library(
-                if (isSingleLoader) "${id}_${mcVersion}"
-                else "${id}_${mcVersion}_$loaderName",
-                "maven.modrinth",
-                loader.slugTransformer(slug)
-            ).version(loader.versionTransformer(version, loaderName))
+            val catalogId = when {
+                isSingleMcVersion && isSingleLoader -> dep.id
+                isSingleMcVersion -> "${dep.id}-$loaderName"
+                isSingleLoader -> "${dep.id}-$mcVersionName"
+                else -> "${dep.id}-$mcVersionName-$loaderName"
+            }
+
+            library(catalogId, dep.group, finalArtifact).version(finalVersion)
         }
     }
 }
 
-dependencyResolutionManagement.versionCatalogs.create("catalog") {
-    val mixinextras = "0.5.0-beta.2"
-    library("mixinextras-forge", "io.github.llamalad7", "mixinextras-forge").version(mixinextras)
-    library("mixinextras-fabric", "io.github.llamalad7", "mixinextras-fabric").version(mixinextras)
-
-    modrinth(
-        id = "surveyor",
-        mcVersionToVersion = mapOf(
-            "1.20" to "0.6.26",
-            "1.21" to "0.6.26"
-        ),
-        versionFormat = VersionFormats.versionPlusMc,
-        mapping = listOf(
-            LoaderMapping(
-                mcVersion = "1.21", loaders = mapOf(
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            ),
-            LoaderMapping(
-                mcVersion = "1.20", loaders = mapOf(
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            )
-        )
-    )
-
-    modrinth(
-        id = "surveystones",
-        mcVersionToVersion = mapOf(
-            "1.20" to "1.3.1",
-            "1.21" to "1.3.1"
-        ),
-        versionFormat = VersionFormats.versionPlusMc,
-        mapping = listOf(
-            LoaderMapping(
-                mcVersion = "1.21", loaders = mapOf(
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            ),
-            LoaderMapping(
-                mcVersion = "1.20", loaders = mapOf(
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            )
-        )
-    )
-
-    modrinth(
-        id = "moonlight",
-        mcVersionToVersion = mapOf(
-            "1.20" to "2.15.6",
-            "1.21" to "2.20.7"
-        ),
-        versionFormat = VersionFormats.mcDashVersion,
-        mapping = listOf(
-            LoaderMapping(
-                mcVersion = "1.21", loaders = mapOf(
-                    "neoforge" to LoaderConfig(VersionTransformers.versionDashLoader),
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            ),
-            LoaderMapping(
-                mcVersion = "1.20", loaders = mapOf(
-                    "forge" to LoaderConfig(VersionTransformers.versionDashLoader),
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            )
-        )
-    )
-
-    modrinth(
-        id = "mapAtlases",
-        slug = "map-atlases",
-        mcVersionToVersion = mapOf(
-            "1.20" to "6.0.17",
-            "1.21" to "6.3.6"
-        ),
-        versionFormat = VersionFormats.mcDashVersion,
-        mapping = listOf(
-            LoaderMapping(
-                mcVersion = "1.21", loaders = mapOf(
-                    "neoforge" to LoaderConfig(
-                        slugTransformer = { "$it-forge" },
-                        VersionTransformers.loaderUnderlineVersion
-                    ),
-                    "fabric" to LoaderConfig(VersionTransformers.loaderUnderlineVersion)
-                )
-            ),
-            LoaderMapping(
-                mcVersion = "1.20", loaders = mapOf(
-                    "forge" to LoaderConfig(
-                        slugTransformer = { "$it-forge" },
-                        VersionTransformers.versionDashLoader
-                    ),
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            )
-        )
-    )
-
-    modrinth(
-        id = "supplementaries",
-        mcVersionToVersion = mapOf(
-            "1.20" to "3.1.36",
-            "1.21" to "3.4.4"
-        ),
-        versionFormat = VersionFormats.mcDashVersion,
-        mapping = listOf(
-            LoaderMapping(
-                mcVersion = "1.21", loaders = mapOf(
-                    "neoforge" to LoaderConfig(VersionTransformers.loaderUnderlineVersion),
-                    "fabric" to LoaderConfig(VersionTransformers.loaderUnderlineVersion)
-                )
-            ),
-            LoaderMapping(
-                mcVersion = "1.20", loaders = mapOf(
-                    "forge" to LoaderConfig(VersionTransformers.versionDashLoader),
-                    "fabric" to LoaderConfig(VersionTransformers.versionDashLoader)
-                )
-            )
-        )
-    )
-
-    val cardinalComponentsApi120 = "5.2.3"
-    library("cardinalComponentsApi-base-1.20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-base")
-        .version(cardinalComponentsApi120)
-    library("cardinalComponentsApi-item-1.20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-item")
-        .version(cardinalComponentsApi120)
-
-    val cardinalComponentsApi121 = "6.1.2"
-    library("cardinalComponentsApi-base-1.21", "org.ladysnake.cardinal-components-api", "cardinal-components-base")
-        .version(cardinalComponentsApi121)
-    library("cardinalComponentsApi-item-1.21", "org.ladysnake.cardinal-components-api", "cardinal-components-item")
-        .version(cardinalComponentsApi121)
+@Suppress("SpellCheckingInspection")
+fun VersionCatalogBuilder.modrinth(id: String, block: MultiVersionDepBuilder.() -> Unit) {
+    dependency(id, "maven.modrinth", block)
 }
+
+// #endregion
+
+// #region Version Catalog
+
+dependencyResolutionManagement.versionCatalogs.create("catalog") {
+    library("mixin-fabric", "net.fabricmc", "sponge-mixin")
+        .version("0.17.3+mixin.0.8.7")
+
+    dependency("mixinextras", "io.github.llamalad7") {
+        artifact = "mixinextras"
+
+        version("*") {
+            modVersion = "0.5.4"
+            loader("forge") { artifact(ArtifactFormatter.dashLoader) }
+            loader("fabric") { artifact(ArtifactFormatter.dashLoader) }
+            loader("common") { artifact(ArtifactFormatter.dashLoader) }
+        }
+    }
+
+    library("preloadingTricks", "settingdust.preloading_tricks", "PreloadingTricks")
+        .version("3.5.10-3-g4c663c2")
+
+
+    dependency("klf", "dev.nyon") {
+        artifact = "KotlinLangForge"
+        versionFormat = { _, ver -> "2.11.2-k2.3.21-$ver" }
+
+        version("20") {
+            modVersion = "2.0"
+            loader("forge") { version(VersionFormatter.plusLoader) }
+        }
+
+        version("21") {
+            modVersion = "3.0"
+            loader("neoforge") { version(VersionFormatter.plusLoader) }
+        }
+
+        version("26") {
+            modVersion = "3.1"
+            loader("neoforge") { version(VersionFormatter.plusLoader) }
+        }
+    }
+
+    library("fabric-language-kotlin", "net.fabricmc", "fabric-language-kotlin").version("1.13.11+kotlin.2.3.21")
+
+    modrinth("surveyor") {
+        version("20") {
+            modVersion = "1.2.3+1.20"
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+        version("21") {
+            modVersion = "1.2.3+1.21"
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+    }
+
+    modrinth("surveystones") {
+        version("20") {
+            modVersion = "2.0.3+1.20"
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+        version("21") {
+            modVersion = "2.0.3+1.21"
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+    }
+
+    modrinth("moonlight") {
+        version("20") {
+            modVersion = "1.20-2.16.30"
+            loader("forge") { version(VersionFormatter.dashLoader) }
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+        version("21") {
+            modVersion = "1.21-2.29.33"
+            loader("neoforge") { version(VersionFormatter.dashLoader) }
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+    }
+
+    modrinth("mapAtlases") {
+        artifact = "map-atlases"
+        version("20") {
+            modVersion = "1.20-6.0.19"
+            loader("forge") {
+                artifact(ArtifactFormatter.dashLoader)
+                version(VersionFormatter.dashLoader)
+            }
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+        version("21") {
+            modVersion = "1.21-6.5.3"
+            loader("neoforge") {
+                artifact { art, _, _ -> "$art-forge" }
+                version(VersionFormatter.dashLoader)
+            }
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+    }
+
+    modrinth("supplementaries") {
+        version("20") {
+            modVersion = "1.20-3.1.43"
+            loader("forge") { version(VersionFormatter.dashLoader) }
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+        version("21") {
+            modVersion = "1.21-3.5.34"
+            loader("neoforge") { version(VersionFormatter.dashLoader) }
+            loader("fabric") { version(VersionFormatter.dashLoader) }
+        }
+    }
+
+    library("cardinalComponents-base-mc20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-base").version("5.2.3")
+    library("cardinalComponents-item-mc20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-item").version("5.2.3")
+    library("cardinalComponents-base-mc21", "org.ladysnake.cardinal-components-api", "cardinal-components-base").version("6.1.2")
+    library("cardinalComponents-item-mc21", "org.ladysnake.cardinal-components-api", "cardinal-components-item").version("6.1.2")
+
+    library("connector-mc20", "org.sinytra", "Connector").version("1.0.0-beta.48+1.20.1")
+    library("connector-mc21", "org.sinytra", "Connector").version("2.0.0-beta.14+1.21.1")
+}
+
+// #endregion
+
+// #region Project Settings
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-val name: String by settings
+rootProject.name = "SurveyorAtlases"
 
-rootProject.name = name
+// #endregion

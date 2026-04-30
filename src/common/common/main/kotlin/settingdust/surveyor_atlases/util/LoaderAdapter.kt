@@ -1,0 +1,9 @@
+package settingdust.surveyor_atlases.util
+
+interface LoaderAdapter {
+    companion object : LoaderAdapter by ServiceLoaderUtil.findService()
+
+    val isClient: Boolean
+
+    fun isModLoaded(modId: String): Boolean
+}

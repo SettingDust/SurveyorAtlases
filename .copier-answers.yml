@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier
+_commit: 0.1.8-69-g22bcbcb
+_src_path: https://github.com/SettingDust/cloche-template
+author: SettingDust
+description: Add support for map marker from MoonlightLib/MapAtlases to Surveyor Map
+    Framework
+group: settingdust.surveyor_atlases
+has_service: false
+id: surveyor_atlases
+language: kotlin
+license: Apache License 2.0
+name: SurveyorAtlases
+slug: surveyor-atlases
