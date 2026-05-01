@@ -42,7 +42,7 @@ plugins {
     kotlin("plugin.serialization") version "2.3.20"
     id("com.palantir.git-version") version "5.0.0"
     id("com.gradleup.shadow") version "9.4.1"
-    id("earth.terrarium.cloche") version "0.18.11-dust.10"
+    id("earth.terrarium.cloche") version "0.18.11-dust.12"
 }
 
 // region Project Properties
