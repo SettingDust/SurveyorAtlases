@@ -157,7 +157,7 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
     }
 
     library("preloadingTricks", "settingdust.preloading_tricks", "PreloadingTricks")
-        .version("3.5.10-3-g4c663c2")
+        .version("3.5.12")
 
 
     dependency("klf", "dev.nyon") {
@@ -250,13 +250,36 @@ dependencyResolutionManagement.versionCatalogs.create("catalog") {
         }
     }
 
-    library("cardinalComponents-base-mc20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-base").version("5.2.3")
-    library("cardinalComponents-item-mc20", "dev.onyxstudios.cardinal-components-api", "cardinal-components-item").version("5.2.3")
-    library("cardinalComponents-base-mc21", "org.ladysnake.cardinal-components-api", "cardinal-components-base").version("6.1.2")
-    library("cardinalComponents-item-mc21", "org.ladysnake.cardinal-components-api", "cardinal-components-item").version("6.1.2")
+    library(
+        "cardinalComponents-base-mc20",
+        "dev.onyxstudios.cardinal-components-api",
+        "cardinal-components-base"
+    ).version("5.2.3")
+    library(
+        "cardinalComponents-item-mc20",
+        "dev.onyxstudios.cardinal-components-api",
+        "cardinal-components-item"
+    ).version("5.2.3")
+    library(
+        "cardinalComponents-base-mc21",
+        "org.ladysnake.cardinal-components-api",
+        "cardinal-components-base"
+    ).version("6.1.2")
+    library(
+        "cardinalComponents-item-mc21",
+        "org.ladysnake.cardinal-components-api",
+        "cardinal-components-item"
+    ).version("6.1.2")
 
     library("connector-mc20", "org.sinytra", "Connector").version("1.0.0-beta.48+1.20.1")
-    library("connector-mc21", "org.sinytra", "Connector").version("2.0.0-beta.14+1.21.1")
+    library("connector-mc21", "org.sinytra", "connector").version("2.0.0-beta.14+1.21.1")
+
+    library("forgifiedFabricApi-mc20", "dev.su5ed.sinytra.fabric-api", "fabric-api").version("0.92.6+1.11.14+1.20.1")
+    library(
+        "forgifiedFabricApi-mc21",
+        "org.sinytra.forgified-fabric-api",
+        "forgified-fabric-api"
+    ).version("0.116.7+2.2.4+1.21.1")
 }
 
 // #endregion

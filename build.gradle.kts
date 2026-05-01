@@ -11,10 +11,7 @@ import com.google.gson.JsonObject
 import earth.terrarium.cloche.ClocheExtension
 import earth.terrarium.cloche.INCLUDE_TRANSFORMED_OUTPUT_ATTRIBUTE
 import earth.terrarium.cloche.REMAPPED_ATTRIBUTE
-import earth.terrarium.cloche.api.attributes.IncludeTransformationStateAttribute
-import earth.terrarium.cloche.api.attributes.MinecraftModLoader
-import earth.terrarium.cloche.api.attributes.RemapNamespaceAttribute
-import earth.terrarium.cloche.api.attributes.TargetAttributes
+import earth.terrarium.cloche.api.attributes.*
 import earth.terrarium.cloche.api.metadata.CommonMetadata
 import earth.terrarium.cloche.api.metadata.FabricMetadata
 import earth.terrarium.cloche.api.target.*
@@ -42,7 +39,7 @@ plugins {
     kotlin("plugin.serialization") version "2.3.20"
     id("com.palantir.git-version") version "5.0.0"
     id("com.gradleup.shadow") version "9.4.1"
-    id("earth.terrarium.cloche") version "0.18.11-dust.8"
+    id("earth.terrarium.cloche") version "0.18.11-dust.9"
 }
 
 // region Project Properties
@@ -675,6 +672,7 @@ cloche {
             loaderVersion {
                 start = "1"
             }
+
             dependency {
                 modId = "minecraft"
                 type = CommonMetadata.Dependency.Type.Required
@@ -687,10 +685,6 @@ cloche {
             dependency {
                 modId = "preloading_tricks"
                 type = CommonMetadata.Dependency.Type.Recommended
-            }
-            dependency {
-                modId = "klf"
-                type = CommonMetadata.Dependency.Type.Required
             }
         }
 
@@ -776,11 +770,6 @@ cloche {
             dependency {
                 modId = "preloading_tricks"
                 type = CommonMetadata.Dependency.Type.Recommended
-            }
-
-            dependency {
-                modId = "klf"
-                type = CommonMetadata.Dependency.Type.Required
             }
         }
 
@@ -896,7 +885,9 @@ cloche {
         runs { client() }
 
         dependencies {
-            modRuntimeOnly(skipIncludeTransformation(project(":")))
+            modRuntimeOnly(skipIncludeTransformation(project(":"))) {
+                isTransitive = false
+            }
 
             modRuntimeOnly(catalog.surveyor.mc20) {
                 attributes {
@@ -921,7 +912,9 @@ cloche {
         runs { client() }
 
         dependencies {
-            modRuntimeOnly(skipIncludeTransformation(project(":")))
+            modRuntimeOnly(skipIncludeTransformation(project(":"))) {
+                isTransitive = false
+            }
 
             modRuntimeOnly(catalog.surveyor.mc21) {
                 attributes {
@@ -950,6 +943,11 @@ cloche {
         runs {
             client {
                 env("MOD_CLASSES", "")
+                jvmArgs(
+                    "-Dconnector.clean.path=${
+                        minecraftArtifacts.jars(RemapNamespaceAttribute.SEARGE)!![ModDistribution.common]!!.get()
+                    }"
+                )
             }
         }
 
@@ -957,24 +955,28 @@ cloche {
             fabricIntermediary()
         }
 
+        configurations.named(lowerCamelCaseGradleName(featureName, "legacyClasspath")) {
+            exclude("org.jetbrains.kotlin")
+        }
+
         dependencies {
-            modRuntimeOnly(project(":"))
+            modRuntimeOnly(project(":")) {
+                isTransitive = false
+            }
 
             legacyClasspath(catalog.preloadingTricks) {
                 isTransitive = false
             }
 
-            modRuntimeOnly(catalog.klf.mc20.forge)
+            legacyClasspath(catalog.klf.mc20.forge)
 
             modRuntimeOnly(catalog.surveyor.mc20) {
                 attributes {
-                    attribute(REMAPPED_ATTRIBUTE, true)
                     attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
                 }
             }
             modRuntimeOnly(catalog.surveystones.mc20) {
                 attributes {
-                    attribute(REMAPPED_ATTRIBUTE, true)
                     attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
                 }
             }
@@ -987,6 +989,9 @@ cloche {
                     attribute(REMAPPED_ATTRIBUTE, true)
                     attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INITIAL)
                 }
+            }
+            modRuntimeOnly(catalog.forgifiedFabricApi.mc20) {
+                exclude(module = "fabric-loader")
             }
         }
     }
@@ -1001,6 +1006,11 @@ cloche {
         runs {
             client {
                 env("MOD_CLASSES", "")
+                jvmArgs(
+                    "-Dconnector.clean.path=${
+                        minecraftArtifacts.jars(RemapNamespaceAttribute.SEARGE)!![ModDistribution.common]!!.get()
+                    }"
+                )
             }
         }
 
@@ -1009,7 +1019,9 @@ cloche {
         }
 
         dependencies {
-            modRuntimeOnly(project(":"))
+            modRuntimeOnly(project(":")) {
+                isTransitive = false
+            }
 
             legacyClasspath(catalog.preloadingTricks) {
                 isTransitive = false
@@ -1032,6 +1044,7 @@ cloche {
             modRuntimeOnly(catalog.mapAtlases.mc21.neoforge)
 
             legacyClasspath(catalog.connector.mc21)
+            modRuntimeOnly(catalog.forgifiedFabricApi.mc21)
         }
     }
 
