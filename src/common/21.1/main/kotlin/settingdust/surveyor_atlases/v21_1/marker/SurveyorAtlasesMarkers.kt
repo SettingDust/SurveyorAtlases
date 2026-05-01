@@ -5,7 +5,7 @@ import folk.sisby.surveyor.WorldSummary
 import net.mehvahdjukaar.moonlight.api.map.MapDataRegistry
 import net.mehvahdjukaar.moonlight.api.map.client.MapDecorationClientManager
 import net.mehvahdjukaar.moonlight.api.map.decoration.MLSpecialMapDecorationType
-import net.mehvahdjukaar.moonlight.api.misc.HolderReference
+import net.mehvahdjukaar.moonlight.api.misc.HolderRef
 import net.mehvahdjukaar.moonlight.api.platform.PlatHelper
 import net.minecraft.server.level.ServerPlayer
 import settingdust.surveyor_atlases.SurveyorAtlases
@@ -16,19 +16,19 @@ object SurveyorAtlasesMarkers {
     val SURVEYOR_STRUCTURE_ID = SurveyorAtlases.SURVEYOR_STRUCTURE_ID.toNative()
 
     val SURVEYOR_LANDMARK =
-        HolderReference.of(SURVEYOR_LANDMARK_ID, MapDataRegistry.MAP_DECORATION_REGISTRY_KEY)!!
+        HolderRef.of(SURVEYOR_LANDMARK_ID, MapDataRegistry.MAP_DECORATION_REGISTRY_KEY)!!
     val SURVEYOR_STRUCTURE =
-        HolderReference.of(SURVEYOR_STRUCTURE_ID, MapDataRegistry.MAP_DECORATION_REGISTRY_KEY)!!
+        HolderRef.of(SURVEYOR_STRUCTURE_ID, MapDataRegistry.MAP_DECORATION_REGISTRY_KEY)!!
 
     init {
         MapDataRegistry.registerSpecialMapDecorationTypeFactory(SURVEYOR_LANDMARK_ID) {
-            MLSpecialMapDecorationType.standaloneCustomMarker<SurveyorLandmarkDecoration, SurveyorLandmarkMarker>(
+            MLSpecialMapDecorationType.standaloneCustomMarker(
                 SurveyorLandmarkMarker.MAP_CODEC,
                 SurveyorLandmarkDecoration.STREAM_CODEC
             )
         }
         MapDataRegistry.registerSpecialMapDecorationTypeFactory(SURVEYOR_STRUCTURE_ID) {
-            MLSpecialMapDecorationType.standaloneCustomMarker<SurveyorStructureDecoration, SurveyorStructureMarker>(
+            MLSpecialMapDecorationType.standaloneCustomMarker(
                 SurveyorStructureMarker.MAP_CODEC,
                 SurveyorStructureDecoration.STREAM_CODEC
             )
@@ -52,9 +52,7 @@ object SurveyorAtlasesMarkers {
             val exploration = SurveyorExploration.of(player as ServerPlayer)
 
             buildSet {
-                worldSummary.landmarks()?.asMap(exploration)?.forEach { (_, marks) ->
-                    addAll(marks.values.map { SurveyorLandmarkMarker(it, SURVEYOR_LANDMARK.getHolder(player)) })
-                }
+                worldSummary.landmarks()?.asMap(exploration)?.values()?.forEach { add(SurveyorLandmarkMarker(it)) }
 
                 worldSummary.structures()?.asMap(exploration)?.forEach { (key, structures) ->
                     addAll(structures.values.map { summary ->

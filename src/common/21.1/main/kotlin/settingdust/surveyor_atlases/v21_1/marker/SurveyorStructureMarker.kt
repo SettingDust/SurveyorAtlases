@@ -2,7 +2,6 @@ package settingdust.surveyor_atlases.v21_1.marker
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
-import com.mojang.serialization.MapCodec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.mehvahdjukaar.moonlight.api.map.MapDataRegistry
 import net.mehvahdjukaar.moonlight.api.map.client.MapDecorationClientManager
@@ -11,6 +10,7 @@ import net.mehvahdjukaar.moonlight.api.map.decoration.MLMapDecoration
 import net.mehvahdjukaar.moonlight.api.map.decoration.MLMapDecorationType
 import net.mehvahdjukaar.moonlight.api.map.decoration.MLMapMarker
 import net.mehvahdjukaar.moonlight.api.platform.PlatHelper
+import net.mehvahdjukaar.moonlight.api.util.Utils
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Holder
@@ -44,7 +44,7 @@ class SurveyorStructureMarker(
     preventsExtending
 ) {
     companion object {
-        val MAP_CODEC: MapCodec<SurveyorStructureMarker> =
+        val MAP_CODEC =
             RecordCodecBuilder.mapCodec<SurveyorStructureMarker> { instance ->
                 instance.group(ResourceKey.codec(Registries.STRUCTURE).fieldOf("structure").forGetter { it.structure })
                     .and(baseCodecGroup(instance))
@@ -54,7 +54,7 @@ class SurveyorStructureMarker(
 
     constructor(structure: ResourceKey<Structure>) : this(
         structure,
-        SurveyorAtlasesMarkers.SURVEYOR_STRUCTURE.holderUnsafe
+        SurveyorAtlasesMarkers.SURVEYOR_STRUCTURE.getHolder(Utils.hackyGetRegistryAccess())
     )
 
     private var currentStructureDecorationType: Holder<MLMapDecorationType<*, *>>? = null

@@ -1,5 +1,6 @@
 package settingdust.surveyor_atlases
 
+import folk.sisby.surveyor.WorldSummary
 import org.apache.logging.log4j.LogManager
 import settingdust.surveyor_atlases.util.Identifier
 import settingdust.surveyor_atlases.util.LoaderAdapter
@@ -15,6 +16,10 @@ object SurveyorAtlases {
 
     init {
         requireNotNull(MoonlightAdapter)
+
+        WorldSummary.enableTerrain()
+        WorldSummary.enableLandmarks()
+        WorldSummary.enableStructures()
     }
 
     fun id(path: String) = Identifier(ID, path)

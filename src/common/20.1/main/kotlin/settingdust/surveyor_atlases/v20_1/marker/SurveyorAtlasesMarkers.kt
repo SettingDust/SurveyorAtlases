@@ -42,9 +42,7 @@ object SurveyorAtlasesMarkers {
             val registryAccess = level.registryAccess()
             val structureRegistry = registryAccess.lookupOrThrow(Registries.STRUCTURE)
             buildSet {
-                worldSummary.landmarks()?.asMap(exploration)?.forEach { (_, marks) ->
-                    addAll(marks.values.map { SurveyorLandmarkMarker(it) })
-                }
+                worldSummary.landmarks()?.asMap(exploration)?.values()?.forEach { add(SurveyorLandmarkMarker(it)) }
 
                 worldSummary.structures()?.asMap(exploration)?.forEach { (key, structures) ->
                     addAll(structures.values.map { summary ->

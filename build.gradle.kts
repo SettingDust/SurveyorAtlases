@@ -624,8 +624,6 @@ cloche {
             modImplementation(catalog.moonlight.mc20.fabric)
             modImplementation(catalog.supplementaries.mc20.fabric)
             modImplementation(catalog.mapAtlases.mc20.fabric)
-            modRuntimeOnly(catalog.cardinalComponents.base.mc20)
-            modRuntimeOnly(catalog.cardinalComponents.item.mc20)
         }
     }
 
@@ -886,6 +884,8 @@ cloche {
 
     // endregion
 
+    // endregion
+
     // region Version Targets
 
     // region Fabric Version Targets
@@ -896,9 +896,22 @@ cloche {
         runs { client() }
 
         dependencies {
-            modRuntimeOnly(skipIncludeTransformation(project(":"))) {
-                isTransitive = false
+            modRuntimeOnly(skipIncludeTransformation(project(":")))
+
+            modRuntimeOnly(catalog.surveyor.mc20) {
+                attributes {
+                    attribute(
+                        IncludeTransformationStateAttribute.ATTRIBUTE,
+                        IncludeTransformationStateAttribute.Extracted
+                    )
+                }
             }
+            modRuntimeOnly(catalog.surveystones.mc20)
+            modRuntimeOnly(catalog.moonlight.mc20.fabric)
+            modRuntimeOnly(catalog.supplementaries.mc20.fabric)
+            modRuntimeOnly(catalog.mapAtlases.mc20.fabric)
+            modRuntimeOnly(catalog.cardinalComponents.base.mc20)
+            modRuntimeOnly(catalog.cardinalComponents.item.mc20)
         }
     }
 
@@ -908,9 +921,22 @@ cloche {
         runs { client() }
 
         dependencies {
-            modRuntimeOnly(skipIncludeTransformation(project(":"))) {
-                isTransitive = false
+            modRuntimeOnly(skipIncludeTransformation(project(":")))
+
+            modRuntimeOnly(catalog.surveyor.mc21) {
+                attributes {
+                    attribute(
+                        IncludeTransformationStateAttribute.ATTRIBUTE,
+                        IncludeTransformationStateAttribute.Extracted
+                    )
+                }
             }
+            modRuntimeOnly(catalog.surveystones.mc21)
+            modRuntimeOnly(catalog.moonlight.mc21.fabric)
+            modRuntimeOnly(catalog.supplementaries.mc21.fabric)
+            modRuntimeOnly(catalog.mapAtlases.mc21.fabric)
+            modRuntimeOnly(catalog.cardinalComponents.base.mc21)
+            modRuntimeOnly(catalog.cardinalComponents.item.mc21)
         }
     }
 
@@ -927,13 +953,40 @@ cloche {
             }
         }
 
+        mappings {
+            fabricIntermediary()
+        }
+
         dependencies {
-            modRuntimeOnly(project(":")) {
-                isTransitive = false
-            }
+            modRuntimeOnly(project(":"))
 
             legacyClasspath(catalog.preloadingTricks) {
                 isTransitive = false
+            }
+
+            modRuntimeOnly(catalog.klf.mc20.forge)
+
+            modRuntimeOnly(catalog.surveyor.mc20) {
+                attributes {
+                    attribute(REMAPPED_ATTRIBUTE, true)
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+            modRuntimeOnly(catalog.surveystones.mc20) {
+                attributes {
+                    attribute(REMAPPED_ATTRIBUTE, true)
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+            modRuntimeOnly(catalog.moonlight.mc20.forge)
+            modRuntimeOnly(catalog.supplementaries.mc20.forge)
+            modRuntimeOnly(catalog.mapAtlases.mc20.forge)
+
+            legacyClasspath(catalog.connector.mc20) {
+                attributes {
+                    attribute(REMAPPED_ATTRIBUTE, true)
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INITIAL)
+                }
             }
         }
     }
@@ -951,16 +1004,38 @@ cloche {
             }
         }
 
+        mappings {
+            fabricIntermediary()
+        }
+
         dependencies {
-            modRuntimeOnly(project(":")) {
-                isTransitive = false
-            }
+            modRuntimeOnly(project(":"))
 
             legacyClasspath(catalog.preloadingTricks) {
                 isTransitive = false
             }
+
+            modRuntimeOnly(catalog.klf.mc21.neoforge)
+
+            modRuntimeOnly(catalog.surveyor.mc21) {
+                attributes {
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+            modRuntimeOnly(catalog.surveystones.mc21) {
+                attributes {
+                    attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INTERMEDIARY)
+                }
+            }
+            modRuntimeOnly(catalog.moonlight.mc21.neoforge)
+            modRuntimeOnly(catalog.supplementaries.mc21.neoforge)
+            modRuntimeOnly(catalog.mapAtlases.mc21.neoforge)
+
+            legacyClasspath(catalog.connector.mc21)
         }
     }
+
+    // endregion
 
     // endregion
 }

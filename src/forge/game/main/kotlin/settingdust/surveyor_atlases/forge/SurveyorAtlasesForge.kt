@@ -1,11 +1,11 @@
 package settingdust.surveyor_atlases.forge
 
+import dev.nyon.klf.MOD_BUS
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import settingdust.surveyor_atlases.SurveyorAtlases
 import settingdust.surveyor_atlases.util.Entrypoint
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @Mod(SurveyorAtlases.ID)
 object SurveyorAtlasesForge {
