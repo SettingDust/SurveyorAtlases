@@ -11,7 +11,10 @@ import com.google.gson.JsonObject
 import earth.terrarium.cloche.ClocheExtension
 import earth.terrarium.cloche.INCLUDE_TRANSFORMED_OUTPUT_ATTRIBUTE
 import earth.terrarium.cloche.REMAPPED_ATTRIBUTE
-import earth.terrarium.cloche.api.attributes.*
+import earth.terrarium.cloche.api.attributes.IncludeTransformationStateAttribute
+import earth.terrarium.cloche.api.attributes.MinecraftModLoader
+import earth.terrarium.cloche.api.attributes.RemapNamespaceAttribute
+import earth.terrarium.cloche.api.attributes.TargetAttributes
 import earth.terrarium.cloche.api.metadata.CommonMetadata
 import earth.terrarium.cloche.api.metadata.FabricMetadata
 import earth.terrarium.cloche.api.target.*
@@ -39,7 +42,7 @@ plugins {
     kotlin("plugin.serialization") version "2.3.20"
     id("com.palantir.git-version") version "5.0.0"
     id("com.gradleup.shadow") version "9.4.1"
-    id("earth.terrarium.cloche") version "0.18.11-dust.9"
+    id("earth.terrarium.cloche") version "0.18.11-dust.10"
 }
 
 // region Project Properties
@@ -943,11 +946,7 @@ cloche {
         runs {
             client {
                 env("MOD_CLASSES", "")
-                jvmArgs(
-                    "-Dconnector.clean.path=${
-                        minecraftArtifacts.jars(RemapNamespaceAttribute.SEARGE)!![ModDistribution.common]!!.get()
-                    }"
-                )
+                jvmArgs("-Dconnector.clean.path=${minecraftArtifacts.searge}")
             }
         }
 
@@ -1006,11 +1005,8 @@ cloche {
         runs {
             client {
                 env("MOD_CLASSES", "")
-                jvmArgs(
-                    "-Dconnector.clean.path=${
-                        minecraftArtifacts.jars(RemapNamespaceAttribute.SEARGE)!![ModDistribution.common]!!.get()
-                    }"
-                )
+
+                jvmArgs("-Dconnector.clean.path=${minecraftArtifacts.searge}")
             }
         }
 
