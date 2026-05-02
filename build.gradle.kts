@@ -42,7 +42,7 @@ plugins {
     kotlin("plugin.serialization") version "2.3.20"
     id("com.palantir.git-version") version "5.0.0"
     id("com.gradleup.shadow") version "9.4.1"
-    id("earth.terrarium.cloche") version "0.18.11-dust.13"
+    id("earth.terrarium.cloche") version "0.18.11-dust.14"
 }
 
 // region Project Properties
@@ -457,10 +457,6 @@ dependencies {
 
 // endregion
 
-lateinit var fabricContainer: ContainerScope
-lateinit var forgeContainer: ContainerScope
-lateinit var neoforgeContainer: ContainerScope
-
 cloche {
     // region Metadata & Mappings
 
@@ -813,7 +809,7 @@ cloche {
 
     // region Fabric Container
 
-    fabricContainer = container(loader = MinecraftModLoader.fabric) {
+    val fabricContainer = container(loader = MinecraftModLoader.fabric) {
         val metadataDirectory = project.layout.buildDirectory.dir("generated")
             .map { it.dir("metadata").dir(featureName) }
         val generateModJson =
@@ -842,7 +838,7 @@ cloche {
 
     // region Forge Container
 
-    forgeContainer = container(loader = MinecraftModLoader.forge) {
+    val forgeContainer = container(loader = MinecraftModLoader.forge) {
         dependencies {
             includeTarget(forgeGame)
         }
@@ -860,7 +856,7 @@ cloche {
 
     // region NeoForge Container
 
-    neoforgeContainer = container(loader = MinecraftModLoader.neoforge) {
+    val neoforgeContainer = container(loader = MinecraftModLoader.neoforge) {
         dependencies {
             includeTarget(neoforgeGame211)
         }
@@ -1047,6 +1043,166 @@ cloche {
     // endregion
 
     // endregion
+
+    // region Final Jar
+    tasks {
+        withType<ProcessResources> {
+            duplicatesStrategy = DuplicatesStrategy.WARN
+        }
+
+        withType<Jar> {
+            duplicatesStrategy = DuplicatesStrategy.WARN
+        }
+
+        shadowJar {
+            enabled = false
+        }
+
+        class ForgeMetadataTransformer : ResourceTransformer {
+            private val gson = GsonBuilder().setPrettyPrinting().create()
+            private val collected = JsonArray()
+            private val path = "META-INF/jarjar/metadata.json"
+            private var transformed = false
+
+            override fun canTransformResource(element: FileTreeElement): Boolean {
+                return element.path == path
+            }
+
+            override fun transform(context: TransformerContext) {
+                context.inputStream.use { input ->
+                    val json = gson.fromJson(input.reader(Charsets.UTF_8), JsonObject::class.java)
+                    val jars = json.getAsJsonArray("jars")
+                    jars?.forEach { collected.add(it) }
+                    transformed = true
+                }
+            }
+
+            override fun hasTransformedResource(): Boolean = transformed
+
+            override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean) {
+                if (collected.size() == 0) return
+
+                val merged = JsonObject().apply {
+                    add("jars", collected)
+                }
+
+                os.putNextEntry(ZipEntry(path))
+                os.write(gson.toJson(merged).toByteArray(StandardCharsets.UTF_8))
+                os.closeEntry()
+            }
+        }
+
+        val shadowMergedDevJar by registering(ShadowJar::class) {
+            archiveClassifier = "dev"
+            configurations = emptyList()
+
+            for (container in listOf(fabricContainer, forgeContainer, neoforgeContainer)) {
+                val output = container.includeDevJarTask.flatMap { it.archiveFile }
+                from(project.zipTree(output))
+
+                manifest.fromJars(serviceOf(), output)
+            }
+
+            mergeServiceFiles()
+            append("META-INF/accesstransformer.cfg")
+
+            transform<ForgeMetadataTransformer>()
+            transform<PreserveFirstFoundResourceTransformer>()
+        }
+
+        val shadowMergedJar by registering(ShadowJar::class) {
+            archiveClassifier = ""
+            configurations = emptyList()
+
+            for (container in listOf(fabricContainer, forgeContainer, neoforgeContainer)) {
+                val output = container.includeJarTask.flatMap { it.archiveFile }
+                from(project.zipTree(output))
+
+                manifest.fromJars(serviceOf(), output)
+            }
+
+            mergeServiceFiles()
+            append("META-INF/accesstransformer.cfg")
+
+            transform<ForgeMetadataTransformer>()
+            transform<PreserveFirstFoundResourceTransformer>()
+        }
+
+        val shadowSourcesJar by registering(ShadowJar::class) {
+            dependsOn(cloche.targets.map { it.generateModsManifestTaskName })
+
+            mergeServiceFiles()
+            archiveClassifier.set("sources")
+            from(sourceSets.map { it.allSource })
+
+            doFirst {
+                manifest {
+                    from(source.filter { it.name.equals("MANIFEST.MF") }.toList())
+                }
+            }
+        }
+
+        build {
+            dependsOn(shadowMergedDevJar, shadowMergedJar, shadowSourcesJar)
+        }
+
+        jar {
+            enabled = false
+        }
+
+        afterEvaluate {
+            (components["java"] as AdhocComponentWithVariants).apply {
+                configurations {
+                    shadowRuntimeElements {
+                        // Shadow plugin registers an extra shadowRuntimeElements variant.
+                        // Keep it out of published metadata to avoid a duplicate runtime slot.
+                        withVariantsFromConfiguration(this) {
+                            skip()
+                        }
+                    }
+
+                    runtimeElements {
+                        // Replace the default jar artifact with shadowMergedJar so that
+                        // run configs that resolve runtimeElements properly depend on shadowMergedJar.
+                        outgoing.artifacts.clear()
+                        outgoing.artifact(shadowMergedJar)
+
+                        // Re-add the dev (remapped=true) variant pointing to shadowMergedDevJar.
+                        outgoing.variants.create("remapped") {
+                            attributes {
+                                attribute(REMAPPED_ATTRIBUTE, true)
+                                attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INITIAL)
+                            }
+                            artifact(shadowMergedDevJar)
+                        }
+
+                        addVariantsFromConfiguration(this) {
+                            if (configurationVariant.name in listOf("classes", "resources")) {
+                                skip()
+                            }
+                            mapToMavenScope("runtime")
+                        }
+                    }
+                }
+
+                val testTargets = cloche.targets.filter { it.isVersionTarget() }
+
+                testTargets.forEach { target ->
+                    for (variant in listOf(
+                        "${target.featureName}ApiElements",
+                        "${target.featureName}RuntimeElements"
+                    )) {
+                        configurations.named(variant) {
+                            withVariantsFromConfiguration(this) {
+                                skip()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // endregion
 }
 
 // region Extension Properties
@@ -1118,162 +1274,5 @@ val MinecraftTarget.accessWidenTaskName: String
 
 val MinecraftTarget.decompileMinecraftTaskName: String
     get() = lowerCamelCaseGradleName("decompile", featureName, "minecraft")
-
-// endregion
-
-// region Tasks
-
-class ForgeMetadataTransformer : ResourceTransformer {
-    private val gson = GsonBuilder().setPrettyPrinting().create()
-    private val collected = JsonArray()
-    private val path = "META-INF/jarjar/metadata.json"
-    private var transformed = false
-
-    override fun canTransformResource(element: FileTreeElement): Boolean {
-        return element.path == path
-    }
-
-    override fun transform(context: TransformerContext) {
-        context.inputStream.use { input ->
-            val json = gson.fromJson(input.reader(Charsets.UTF_8), JsonObject::class.java)
-            val jars = json.getAsJsonArray("jars")
-            jars?.forEach { collected.add(it) }
-            transformed = true
-        }
-    }
-
-    override fun hasTransformedResource(): Boolean = transformed
-
-    override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean) {
-        if (collected.size() == 0) return
-
-        val merged = JsonObject().apply {
-            add("jars", collected)
-        }
-
-        os.putNextEntry(ZipEntry(path))
-        os.write(gson.toJson(merged).toByteArray(StandardCharsets.UTF_8))
-        os.closeEntry()
-    }
-}
-
-tasks {
-    withType<ProcessResources> {
-        duplicatesStrategy = DuplicatesStrategy.WARN
-    }
-
-    withType<Jar> {
-        duplicatesStrategy = DuplicatesStrategy.WARN
-    }
-
-    shadowJar {
-        enabled = false
-    }
-
-    jar {
-        enabled = false
-    }
-
-    val shadowMergedDevJar by registering(ShadowJar::class) {
-        archiveClassifier = "dev"
-        configurations = emptyList()
-
-        for (container in listOf(fabricContainer, forgeContainer, neoforgeContainer)) {
-            val output = container.includeDevJarTask.flatMap { it.archiveFile }
-            from(project.zipTree(output))
-
-            manifest.fromJars(serviceOf(), output)
-        }
-
-        mergeServiceFiles()
-        append("META-INF/accesstransformer.cfg")
-
-        transform<ForgeMetadataTransformer>()
-        transform<PreserveFirstFoundResourceTransformer>()
-    }
-
-    val shadowMergedJar by registering(ShadowJar::class) {
-        archiveClassifier = ""
-        configurations = emptyList()
-
-        for (container in listOf(fabricContainer, forgeContainer, neoforgeContainer)) {
-            val output = container.includeJarTask.flatMap { it.archiveFile }
-            from(project.zipTree(output))
-
-            manifest.fromJars(serviceOf(), output)
-        }
-
-        mergeServiceFiles()
-        append("META-INF/accesstransformer.cfg")
-
-        transform<ForgeMetadataTransformer>()
-        transform<PreserveFirstFoundResourceTransformer>()
-    }
-
-    val shadowSourcesJar by registering(ShadowJar::class) {
-        dependsOn(cloche.targets.map { it.generateModsManifestTaskName })
-
-        mergeServiceFiles()
-        archiveClassifier.set("sources")
-        from(sourceSets.map { it.allSource })
-
-        doFirst {
-            manifest {
-                from(source.filter { it.name.equals("MANIFEST.MF") }.toList())
-            }
-        }
-    }
-
-    build {
-        dependsOn(shadowMergedDevJar, shadowMergedJar, shadowSourcesJar)
-    }
-
-    afterEvaluate {
-        (components["java"] as AdhocComponentWithVariants).apply {
-            configurations {
-                shadowRuntimeElements {
-                    withVariantsFromConfiguration(this) {
-                        skip()
-                    }
-                }
-
-                runtimeElements {
-                    outgoing.artifacts.clear()
-                    outgoing.artifact(shadowMergedJar)
-
-                    outgoing.variants.create("remapped") {
-                        attributes {
-                            attribute(REMAPPED_ATTRIBUTE, true)
-                            attribute(RemapNamespaceAttribute.ATTRIBUTE, RemapNamespaceAttribute.INITIAL)
-                        }
-                        artifact(shadowMergedDevJar)
-                    }
-
-                    addVariantsFromConfiguration(this) {
-                        if (configurationVariant.name in listOf("classes", "resources")) {
-                            skip()
-                        }
-                        mapToMavenScope("runtime")
-                    }
-                }
-            }
-
-            val testTargets = cloche.targets.filter { it.isVersionTarget() }
-
-            testTargets.forEach { target ->
-                for (variant in listOf(
-                    "${target.featureName}ApiElements",
-                    "${target.featureName}RuntimeElements"
-                )) {
-                    configurations.named(variant) {
-                        withVariantsFromConfiguration(this) {
-                            skip()
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 // endregion
